@@ -1,7 +1,7 @@
 --------------------------------------------------------------------
 -- CORE SERVICES
 --------------------------------------------------------------------
-local Players = game:GetService("")
+local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
@@ -14,7 +14,7 @@ local FuseDone = false
 local ScreensDone = false
 local ValvesDone = false
 local FusePromptsSeen = false
-local cycleCount = 0
+local cycleCount = 
 
 local lastProgress = tick()
 local watchdogFired = false
@@ -44,9 +44,9 @@ end
 --------------------------------------------------------------------
 local VirtualUser = game:GetService("VirtualUser")
 lp.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait(0.1)
-    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(, ), workspace.CurrentCamera.CFrame)
+    task.wait(.1)
+    VirtualUser:Button2Up(Vector2.new(, ), workspace.CurrentCamera.CFrame)
 end)
 
 --------------------------------------------------------------------
@@ -86,7 +86,7 @@ local function runFuseSequence()
     local sticksFolder, inputFolder
     repeat
         sticksFolder, inputFolder = findFuseComponents()
-        task.wait(0.2)
+        task.wait(.2)
     until sticksFolder and inputFolder
 
     while true do
@@ -101,38 +101,38 @@ local function runFuseSequence()
         if sticks[1] and sticks[1]:FindFirstChildOfClass("ProximityPrompt") then
             break
         end
-        task.wait(0.1)
+        task.wait(.1)
     end
 
     local root = getRoot()
-    for _, slot in ipairs({"One","Two"}) do
+    for _, slot in ipairs({"One", "Two"}) do
         local stick
         repeat
             sticksFolder, inputFolder = findFuseComponents()
             stick = sticksFolder:GetChildren()[1]
-            task.wait(0.1)
+            task.wait(.1)
         until stick
 
-        root.CFrame = stick.CFrame * CFrame.new(0,2,0)
-        task.wait(0.5)
+        root.CFrame = stick.CFrame * CFrame.new(, 2, )
+        task.wait(.5)
         interact(stick)
 
         local input = inputFolder:FindFirstChild(slot)
-        root.CFrame = input.CFrame * CFrame.new(0,2,0)
-        task.wait(0.5)
+        root.CFrame = input.CFrame * CFrame.new(, 2, )
+        task.wait(.5)
         interact(input)
     end
 
     while true do
         local sticks, inputs = findFuseComponents()
-        if sticks and #sticks:GetChildren() == 0 then
+        if sticks and #sticks:GetChildren() ==  then
             local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
             local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
             if not a and not b then
                 break
             end
         end
-        task.wait(0.1)
+        task.wait(.1)
     end
 
     FuseDone = true
@@ -151,7 +151,7 @@ local function startScreenSolver()
     end
 
     for _, screen in ipairs(screens:GetChildren()) do
-        while task.wait(0.5) do
+        while task.wait(.5) do
             if screen.Color and screen.Color.G == 1 then
                 break
             end
@@ -215,7 +215,7 @@ local function runValveHunter()
                     root.CFrame = CFrame.new(pos + prompt.Parent.CFrame.LookVector * 2)
                     fireproximityprompt(prompt)
                     markProgress()
-                    task.wait(0.1)
+                    task.wait(.1)
                 end
             end
         end
@@ -225,7 +225,7 @@ local function runValveHunter()
             return
         end
 
-        task.wait(0.5)
+        task.wait(.5)
     end
 end
 
@@ -241,40 +241,49 @@ local function waitForFusePrompts()
             markProgress()
             return
         end
-        task.wait(0.1)
+        task.wait(.1)
     end
 end
 
 --------------------------------------------------------------------
--- WATCHDOG
+-- WATCHDOG (40s inactivity, only after fuse prompts)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
-        -- Only check if we need to perform a watchdog action if the cycle is active and we've seen fuse prompts
         if currentCycleActive and FusePromptsSeen and not (FuseDone and ScreensDone and ValvesDone) then
-            if not watchdogFired and tick() - lastProgress > 45 then
+            if not watchdogFired and tick() - lastProgress > 40 then
                 watchdogFired = true
+
                 local hum = getChar():FindFirstChildOfClass("Humanoid")
-                if hum then 
-                    hum.Health = 0 
-                    print("Watchdog triggered: Player killed due to inactivity")
+                if hum then
+                    hum.Health = 
+                    print("Watchdog triggered: Player killed due to 40s inactivity, waiting for fuse prompts again")
                 end
+
+                -- reset state and wait again for fuse prompts
+                FuseDone, ScreensDone, ValvesDone = false, false, false
+                FusePromptsSeen = false
+                currentCycleActive = false
+                resetWatchdog()
+
+                waitForFusePrompts()
+                currentCycleActive = true
+                markProgress()
             end
         else
-            -- If not in the active state where we need to monitor, reset and wait
             watchdogFired = false
             task.wait(2)
         end
-        task.wait(3)
+        task.wait(1)
     end
 end)
 
 --------------------------------------------------------------------
--- AUTO REJOIN
+-- AUTO REJOIN (REPLACED LOADER)
 --------------------------------------------------------------------
 local function rejoin()
     lp.OnTeleport:Connect(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/JustF/main/Goofy"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/Automation/50cce8e4e7fff3bddf9286f5dc441fa31a30b25d/Automation"))()
     end)
     TeleportService:Teleport(placeId, lp)
 end
@@ -287,22 +296,23 @@ task.spawn(function()
         cycleCount += 1
         FuseDone, ScreensDone, ValvesDone = false, false, false
         resetWatchdog()
-        currentCycleActive = true
 
         waitForFusePrompts()
+        currentCycleActive = true
+
         task.spawn(startScreenSolver)
         runFuseSequence()
         runValveHunter()
 
         while not (FuseDone and ScreensDone and ValvesDone) do
-            task.wait(0.1)
+            task.wait(.1)
         end
 
         local hum = getChar():FindFirstChildOfClass("Humanoid")
-        if hum then hum.Health = 0 end
+        if hum then hum.Health =  end
         task.wait(1)
 
-        currentCycleActive = false -- Deactivate the watchdog when cycle ends
+        currentCycleActive = false
 
         if cycleCount >= 60 then
             rejoin()
