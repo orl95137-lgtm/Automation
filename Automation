@@ -19,6 +19,9 @@ local cycleCount = 0
 local lastProgress = tick()
 local watchdogFired = false
 
+--------------------------------------------------------------------
+-- CHARACTER HELPERS
+--------------------------------------------------------------------
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
 end
@@ -77,7 +80,7 @@ local function interact(target)
 end
 
 --------------------------------------------------------------------
--- FUSE SEQUENCE + AUTO TASER
+-- FUSE SEQUENCE + AUTO TASER (.01s)
 --------------------------------------------------------------------
 local function runFuseSequence()
     FuseDone = false
@@ -100,7 +103,7 @@ local function runFuseSequence()
         if sticks[1] and sticks[1]:FindFirstChildOfClass("ProximityPrompt") then
             break
         end
-        task.wait(0.1)
+        task.wait(0.01)
     end
 
     local root = getRoot()
