@@ -18,7 +18,7 @@ local cycleCount = 0
 
 local lastProgress = tick()
 local watchdogFired = false
-local currentCycleActive = false -- New variable to control the watchdog
+local currentCycleActive = false
 
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
@@ -86,8 +86,8 @@ local function runFuseSequence()
     local sticksFolder, inputFolder
     repeat
         sticksFolder, inputFolder = findFuseComponents()
-        task.wait(0.2)
-    until sticksFolder and inputFolder
+        task.wait0.2)
+ until sticksFolder and inputFolder
 
     while true do
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
@@ -250,24 +250,23 @@ end
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
-        -- Only check if the watchdog should operate if the current cycle is active
-        if currentCycleActive then
-            if not FusePromptsSeen or (FuseDone and ScreensDone and ValvesDone) then
-                watchdogFired = false
-                task.wait(2)
-                continue
-            end
-
+        -- Only check if we need to perform a watchdog action if the cycle is active and we've seen fuse prompts
+        if currentCycleActive and FusePromptsSeen and not (FuseDone and ScreensDone and ValvesDone) then
             if not watchdogFired and tick() - lastProgress > 45 then
                 watchdogFired = true
                 local hum = getChar():FindFirstChildOfClass("Humanoid")
-                if hum then hum.Health = 0 end
+                if hum then 
+                    hum.Health = 0 
+                    print("Watchdog triggered: Player killed due to inactivity")
+                end
             end
         else
-            -- If not active, just wait longer before checking again
-            task.wait(10)
+            -- If not in the active state where we need to monitor, reset and wait
+            watchdogFired = false
+            task.wait(2)
         end
- task.wait(3    end
+        task.wait(3)
+    end
 end)
 
 --------------------------------------------------------------------
@@ -288,7 +287,7 @@ task.spawn(function()
         cycleCount += 1
         FuseDone, ScreensDone, ValvesDone = false, false, false
         resetWatchdog()
-        currentCycleActive = true -- Activate the watchdog for this cycle
+        currentCycleActive = true
 
         waitForFusePrompts()
         task.spawn(startScreenSolver)
@@ -303,9 +302,9 @@ task.spawn(function()
         if hum then hum.Health = 0 end
         task.wait(1)
 
-        currentCycleActive = false -- Deactivate the watchdog when cycle
+        currentCycleActive = false -- Deactivate the watchdog when cycle ends
 
-        if cycleCount >=60 then
+        if cycleCount >= 60 then
             rejoin()
             break
         end
