@@ -1,0 +1,403 @@
+--------------------------------------------------------------------
+-- CORE SERVICES
+--------------------------------------------------------------------
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local placeId = game.PlaceId
+
+--------------------------------------------------------------------
+-- STATE
+--------------------------------------------------------------------
+local FuseDone = false
+local ScreensDone = false
+local ValvesDone = false
+local FusePromptsSeen = false
+local cycleCount = 0
+
+local function Log(msg)
+    print("[AUTO] " .. msg)
+end
+
+local function getChar()
+    return lp.Character or lp.CharacterAdded:Wait()
+end
+
+local function getRoot()
+    return getChar():WaitForChild("HumanoidRootPart")
+end
+
+--------------------------------------------------------------------
+-- ANTI AFK
+--------------------------------------------------------------------
+local VirtualUser = game:GetService("VirtualUser")
+lp.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    task.wait(0.1)
+    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end)
+
+--------------------------------------------------------------------
+-- FUSE LOGIC
+--------------------------------------------------------------------
+local function findFuseComponents()
+    local sticks, input = nil, nil
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "Fuse" and obj:FindFirstChild("Sticks") and obj:FindFirstChild("Input") then
+            sticks = obj.Sticks
+            input = obj.Input
+            break
+        end
+    end
+    return sticks, input
+end
+
+local function interactWithTarget(target, holdTime)
+    if not target then return false end
+    local prompt = target:FindFirstChildOfClass("ProximityPrompt")
+    
+    if not prompt then
+        for _, v in ipairs(workspace:GetDescendants()) do
+            if v:IsA("ProximityPrompt") and (v.Parent.Position - target.Position).Magnitude < 10 then
+                prompt = v
+                break
+            end
+        end
+    end
+
+    if prompt then
+        Log("Interacting with: " .. target.Name)
+        fireproximityprompt(prompt)
+        if holdTime then task.wait(holdTime) end
+        return true
+    end
+    return false
+end
+
+local function runFuseSequence()
+    FuseDone = false
+    Log("Waiting for fuse model...")
+
+    local sticksFolder, inputFolder
+    repeat
+        sticksFolder, inputFolder = findFuseComponents()
+        task.wait(0.2)
+    until sticksFolder and inputFolder
+
+    Log("Fuse model found.")
+
+    ----------------------------------------------------------------
+    -- AUTO TASER LOOP
+    ----------------------------------------------------------------
+    Log("Starting taser loop until fuse sequence starts...")
+
+    local rs = ReplicatedStorage
+    while true do
+        local remotes = rs:FindFirstChild("Remotes")
+        local useTaser = remotes and remotes:FindFirstChild("UseTaser")
+        if useTaser then
+            useTaser:FireServer()
+        end
+
+        local sticks, _ = findFuseComponents()
+        local firstStick = sticks and sticks:GetChildren()[1]
+        if firstStick and firstStick:FindFirstChildOfClass("ProximityPrompt") then
+            Log("Fuse prompts detected — taser loop stopping.")
+            break
+        end
+        task.wait(0.1)
+    end
+
+    ----------------------------------------------------------------
+    -- FUSE PICKUP + DEPOSIT
+    ----------------------------------------------------------------
+    Log("Beginning fuse pickup sequence...")
+
+    local char = getChar()
+    local root = getRoot()
+    local slots = {"One", "Two"}
+
+    for _, slotName in ipairs(slots) do
+        local sticksFolder, inputFolder = findFuseComponents()
+        local sticks = sticksFolder:GetChildren()
+        local stick = sticks[1]
+        local input = inputFolder:FindFirstChild(slotName)
+
+        while not stick do
+            Log("Waiting for stick to exist...")
+            sticksFolder, inputFolder = findFuseComponents()
+            sticks = sticksFolder:GetChildren()
+            stick = sticks[1]
+            task.wait(0.1)
+        end
+
+        Log("Teleporting above stick: " .. stick.Name)
+        root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+        task.wait(0.6)
+
+        interactWithTarget(stick)
+        task.wait(0.5)
+
+        Log("Teleporting above input slot: " .. slotName)
+        root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
+        task.wait(0.6)
+
+        interactWithTarget(input)
+        task.wait(0.5)
+    end
+
+    ----------------------------------------------------------------
+    -- TRUE FUSE COMPLETION CHECK
+    ----------------------------------------------------------------
+    Log("Waiting for fuse to fully complete...")
+
+    while true do
+        local sticksFolder, inputFolder = findFuseComponents()
+        if sticksFolder then
+            local sticks = sticksFolder:GetChildren()
+            local slot1 = inputFolder:FindFirstChild("One")
+            local slot2 = inputFolder:FindFirstChild("Two")
+            local slot1Prompt = slot1 and slot1:FindFirstChildOfClass("ProximityPrompt")
+            local slot2Prompt = slot2 and slot2:FindFirstChildOfClass("ProximityPrompt")
+
+            if #sticks == 0 and not slot1Prompt and not slot2Prompt then
+                Log("Fuse is officially complete.")
+                break
+            end
+        end
+        task.wait(0.1)
+    end
+
+    FuseDone = true
+end
+
+--------------------------------------------------------------------
+-- SCREEN SOLVER
+--------------------------------------------------------------------
+local function startScreenSolver()
+    ScreensDone = false
+    Log("Starting screen solver...")
+
+    local screensFolder = workspace:FindFirstChild("Screens", true)
+    if not screensFolder then
+        Log("No screens found.")
+        ScreensDone = true
+        return
+    end
+
+    for _, screen in ipairs(screensFolder:GetChildren()) do
+        Log("Solving screen: " .. screen.Name)
+
+        while task.wait(0.5) do
+            if screen.Color and screen.Color.G == 1 then
+                Log("Screen solved: " .. screen.Name)
+                break
+            end
+
+            local click = screen:FindFirstChild("PuzzleClickDetector", true)
+            if click then
+                fireclickdetector(click)
+            end
+        end
+    end
+
+    Log("All screens solved.")
+    ScreensDone = true
+end
+
+--------------------------------------------------------------------
+-- VALVE HUNTER
+--------------------------------------------------------------------
+local function areAllValvePromptsDone(folder)
+    for _, valve in ipairs(folder:GetChildren()) do
+        local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt and prompt.Enabled then
+            return false
+        end
+    end
+    return true
+end
+
+local function runValveHunter()
+    ValvesDone = false
+    Log("Starting valve hunter...")
+
+    local character = getChar()
+    local rootPart = getRoot()
+
+    while true do
+        local map
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
+                map = obj
+                break
+            end
+        end
+
+        if not map then
+            Log("No valve puzzle found — forcing reset.")
+            local hum = character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+            task.wait(1)
+            ValvesDone = true
+            return
+        end
+
+        local valvesFolder = map.Puzzles.Valves
+        if #valvesFolder:GetChildren() == 0 then
+            ValvesDone = true
+            return
+        end
+
+        if areAllValvePromptsDone(valvesFolder) then
+            ValvesDone = true
+            return
+        end
+
+        for _, valve in ipairs(valvesFolder:GetChildren()) do
+            local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt and prompt.Enabled then
+                Log("Working valve: " .. valve.Name)
+                local parent = prompt.Parent
+                local targetPos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
+                local startTime = tick()
+                local lastFire = tick()
+
+                while prompt.Enabled and (tick() - startTime) < 6 do
+                    rootPart.CFrame = CFrame.lookAt(rootPart.Position, targetPos)
+                    rootPart.CFrame = CFrame.new(targetPos + (parent.CFrame.LookVector * 2))
+                    if tick() - lastFire >= 0.1 then
+                        fireproximityprompt(prompt)
+                        lastFire = tick()
+                    end
+                    task.wait()
+                end
+
+                Log("Valve finished: " .. valve.Name)
+            end
+        end
+
+        if areAllValvePromptsDone(valvesFolder) then
+            ValvesDone = true
+            return
+        end
+
+        task.wait(0.5)
+    end
+end
+
+--------------------------------------------------------------------
+-- WAIT FOR FUSE PROMPTS
+--------------------------------------------------------------------
+local function waitForFusePrompts()
+    Log("Waiting for fuse prompts before starting screens...")
+
+    while true do
+        local sticks, inputs = findFuseComponents()
+        local firstStick = sticks and sticks:GetChildren()[1]
+        if firstStick and firstStick:FindFirstChildOfClass("ProximityPrompt") then
+            Log("Fuse prompts detected — starting automation.")
+            FusePromptsSeen = true
+            return
+        end
+        task.wait(0.1)
+    end
+end
+
+--------------------------------------------------------------------
+-- WATCHDOG (FIXED)
+--------------------------------------------------------------------
+task.spawn(function()
+    local lastProgress = tick()
+
+    while true do
+        if not FusePromptsSeen then
+            lastProgress = tick()
+            task.wait(5)
+            continue
+        end
+
+        if FuseDone or ScreensDone or ValvesDone then
+            lastProgress = tick()
+        end
+
+        if tick() - lastProgress > 40 then
+            Log("WATCHDOG: Stuck after fuse start — forcing reset.")
+            local char = getChar()
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+            lastProgress = tick()
+        end
+
+        task.wait(5)
+    end
+end)
+
+--------------------------------------------------------------------
+-- AUTO-REJOIN AFTER 60 CYCLES + EXECUTE EXTERNAL SCRIPT
+--------------------------------------------------------------------
+local function rejoinAndExecute()
+    Log("Auto-rejoin triggered after 60 cycles.")
+    lp.OnTeleport:Connect(function(state)
+        if state == Enum.TeleportState.Started or state == Enum.TeleportState.Failed then
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/JustF/main/Goofy"))()
+        end
+    end)
+    TeleportService:Teleport(placeId, lp)
+end
+
+--------------------------------------------------------------------
+-- MAIN AUTOMATION LOOP
+--------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        cycleCount = cycleCount + 1
+        Log("=== NEW CYCLE STARTED | Cycle: "..cycleCount.." ===")
+
+        FuseDone = false
+        ScreensDone = false
+        ValvesDone = false
+
+        waitForFusePrompts()
+        task.spawn(startScreenSolver)
+        runFuseSequence()
+        runValveHunter()
+
+        Log("Waiting for all puzzles to finish...")
+
+        while not (FuseDone and ScreensDone and ValvesDone) do
+            local mapExists = false
+            for _, obj in ipairs(workspace:GetChildren()) do
+                if obj:FindFirstChild("Puzzles") then
+                    mapExists = true
+                    break
+                end
+            end
+            if not mapExists then
+                Log("Map deleted — forcing reset.")
+                local char = getChar()
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.Health = 0 end
+                task.wait(1)
+                break
+            end
+            task.wait(0.1)
+        end
+
+        Log("Resetting character...")
+        local char = getChar()
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.Health = 0 end
+        getChar()
+        task.wait(1)
+
+        if cycleCount >= 60 then
+            rejoinAndExecute()
+            break
+        end
+
+        Log("=== CYCLE COMPLETE — RESTARTING ===")
+    end
+end)
