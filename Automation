@@ -19,7 +19,7 @@ local cycleCount =
 local lastProgress = tick()
 local watchdogFired = false
 local currentCycleActive = false
-local watchdogEnabled = false -- KEY FLAG
+local watchdogEnabled = false -- added
 
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
@@ -111,7 +111,7 @@ local function runFuseSequence()
     end
 
     local root = getRoot()
-    for _, slot in ipairs({"One", "Two"}) do
+    for _, slot in ipairs({ "One", "Two" }) do
         local stick
         repeat
             sticksFolder, inputFolder = findFuseComponents()
@@ -252,7 +252,7 @@ local function waitForFusePrompts()
 end
 
 --------------------------------------------------------------------
--- WATCHDOG (40s inactivity, ONLY when enabled & in cycle)
+-- WATCHDOG (40s inactivity, hard-gated)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
@@ -266,4 +266,79 @@ task.spawn(function()
 
                 local hum = getChar():FindFirstChildOfClass("Humanoid")
                 if hum then
-                    hum.Health =
+                    hum.Health = 
+                    print("Watchdog triggered: Player killed due to 40s inactivity, resetting to wait for fuse prompts")
+                end
+
+                -- Clear state and turn watchdog OFF
+                FuseDone, ScreensDone, ValvesDone = false, false, false
+                FusePromptsSeen = false
+                currentCycleActive = false
+                watchdogEnabled = false
+                resetWatchdog()
+
+                -- Wait again for fuse prompts
+                waitForFusePrompts()
+
+                -- Re-enable for the next cycle once prompts are back
+                currentCycleActive = true
+                watchdogEnabled = true
+                markProgress()
+            end
+        else
+            watchdogFired = false
+        end
+
+        task.wait(1)
+    end
+end)
+
+--------------------------------------------------------------------
+-- AUTO REJOIN
+--------------------------------------------------------------------
+local function rejoin()
+    lp.OnTeleport:Connect(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/Automation/50cce8e4e7fff3bddf9286f5dc441fa31a30b25d/Automation"))()
+    end)
+    TeleportService:Teleport(placeId, lp)
+end
+
+--------------------------------------------------------------------
+-- MAIN LOOP
+--------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        cycleCount += 1
+        FuseDone, ScreensDone, ValvesDone = false, false, false
+        resetWatchdog()
+
+        -- Watchdog is OFF while we wait for prompts
+        watchdogEnabled = false
+        waitForFusePrompts()
+
+        -- Now prompts are visible, start cycle and enable watchdog
+        currentCycleActive = true
+        watchdogEnabled = true
+
+        task.spawn(startScreenSolver)
+        runFuseSequence()
+        runValveHunter()
+
+        while not (FuseDone and ScreensDone and ValvesDone) do
+            task.wait(.1)
+        end
+
+        local hum = getChar():FindFirstChildOfClass("Humanoid")
+        if hum then hum.Health =  end
+        task.wait(1)
+
+        -- End of cycle: disable watchdog again
+        currentCycleActive = false
+        watchdogEnabled = false
+
+        if cycleCount >= 60 then
+            rejoin()
+            break
+        end
+    end
+end)
