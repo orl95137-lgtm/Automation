@@ -17,9 +17,6 @@ local ValvesDone = false
 local cycleCount = 
 local currentCycleActive = false
 
---------------------------------------------------------------------
--- HELPERS
---------------------------------------------------------------------
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
 end
@@ -94,7 +91,6 @@ local function runFuseSequence()
         task.wait(.2)
     until sticksFolder and inputFolder
 
-    -- Taser spam while waiting for stick prompt
     while currentCycleActive do
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         local taser = remotes and remotes:FindFirstChild("UseTaser")
@@ -113,8 +109,7 @@ local function runFuseSequence()
     local root = getRoot()
     if not root then return end
 
-    -- Do sticks
-    for _, slot in ipairs({ "One", "Two" }) do
+    for _, slot in ipairs({"One", "Two"}) do
         if not currentCycleActive then break end
         
         local stick
@@ -139,7 +134,6 @@ local function runFuseSequence()
         end
     end
 
-    -- Wait for completion
     while currentCycleActive do
         local sticks, inputs = findFuseComponents()
         if sticks and #sticks:GetChildren() ==  then
@@ -284,7 +278,7 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- WATCHDOG (checks every 60 seconds)
+-- WATCHDOG (checks every 2 seconds)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
@@ -303,7 +297,7 @@ task.spawn(function()
                 FuseDone, ScreensDone, ValvesDone = false, false, false
             end
         end
-        task.wait(60)
+        task.wait(2) -- check every 2 seconds
     end
 end)
 
