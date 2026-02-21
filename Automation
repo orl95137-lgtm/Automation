@@ -1,7 +1,7 @@
 --------------------------------------------------------------------
 -- CORE SERVICES
 --------------------------------------------------------------------
-local Players = game:GetService("Players")
+local Players = game:GetService("")
 local lp = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
@@ -86,8 +86,8 @@ local function runFuseSequence()
     local sticksFolder, inputFolder
     repeat
         sticksFolder, inputFolder = findFuseComponents()
-        task.wait0.2)
- until sticksFolder and inputFolder
+        task.wait(0.2)
+    until sticksFolder and inputFolder
 
     while true do
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
