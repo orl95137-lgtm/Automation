@@ -81,8 +81,12 @@ local function runFuseSequence()
         task.wait(0.1)
     until sticksFolder and inputFolder
 
-    -- AUTO TASER (0.01s)
+    local root = getRoot()
+
+    -- AUTO TASER UNTIL FUSE PROMPTS APPEAR
     while true do
+        lastProgress = tick() -- keep watchdog alive
+
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         local taser = remotes and remotes:FindFirstChild("UseTaser")
         if taser then taser:FireServer() end
@@ -91,12 +95,13 @@ local function runFuseSequence()
         local first = sticks[1]
         if first and first:FindFirstChildWhichIsA("ProximityPrompt") then
             FusePromptsSeen = true
+            lastProgress = tick() -- arm watchdog
             break
         end
+
         task.wait(0.01)
     end
 
-    local root = getRoot()
     for _, slot in ipairs({"One","Two"}) do
         local stick = sticksFolder:GetChildren()[1]
         local input = inputFolder:FindFirstChild(slot)
@@ -161,6 +166,7 @@ local function runValveHunter()
                     while prompt.Enabled and tick() - start < 6 do
                         root.CFrame = CFrame.new(pos + Vector3.new(0,0,2))
                         fireproximityprompt(prompt)
+                        lastProgress = tick() -- keep watchdog alive
                         task.wait(0.1)
                     end
                 end
@@ -172,18 +178,28 @@ local function runValveHunter()
 end
 
 --------------------------------------------------------------------
--- WATCHDOG (CYCLE SAFE)
+-- WATCHDOG (FINAL, SAFE)
 --------------------------------------------------------------------
 local function startWatchdog(myCycle)
     task.spawn(function()
         while watchdogCycle == myCycle do
-            if FusePromptsSeen and not (FuseDone and ScreensDone and ValvesDone) then
-                if tick() - lastProgress > 45 then
-                    local hum = getChar():FindFirstChildOfClass("Humanoid")
-                    if hum then hum.Health = 0 end
-                    return
-                end
+            -- do not run until fuse prompts exist
+            if not FusePromptsSeen then
+                lastProgress = tick()
+                task.wait(1)
+                continue
             end
+
+            if FuseDone and ScreensDone and ValvesDone then
+                return
+            end
+
+            if tick() - lastProgress > 45 then
+                local hum = getChar():FindFirstChildOfClass("Humanoid")
+                if hum then hum.Health = 0 end
+                return
+            end
+
             task.wait(2)
         end
     end)
