@@ -27,11 +27,11 @@ local function getRoot()
 end
 
 local function markProgress()
-    -- no-op; previously used for watchdog
+    -- no-op; placeholder
 end
 
 local function resetWatchdog()
-    -- no-op; previously used for watchdog
+    -- no-op; placeholder
 end
 
 --------------------------------------------------------------------
@@ -333,7 +333,7 @@ task.spawn(function()
 
         if currentCycleActive and (FuseDone and ScreensDone and ValvesDone) then
             local hum = getChar():FindFirstChildOfClass("Humanoid")
-            if hum then hum.Health =  end
+            if hum then hum.Health = 
         end
 
         currentCycleActive = false
