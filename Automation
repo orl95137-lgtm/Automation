@@ -16,6 +16,7 @@ local ScreensDone = false
 local ValvesDone = false
 local cycleCount = 0
 local currentCycleActive = false
+local waitingForFuse = true
 
 --------------------------------------------------------------------
 -- HELPERS
@@ -55,7 +56,6 @@ end
 local function interact(target)
     if not target then return end
     local prompt = target:FindFirstChildOfClass("ProximityPrompt")
-
     if not prompt then
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") and v.Parent:IsA("BasePart") then
@@ -69,7 +69,6 @@ local function interact(target)
             end
         end
     end
-
     if prompt then
         fireproximityprompt(prompt)
     end
@@ -80,7 +79,6 @@ end
 --------------------------------------------------------------------
 local function runFuseSequence()
     FuseDone = false
-
     local sticksFolder, inputFolder
     repeat
         sticksFolder, inputFolder = findFuseComponents()
@@ -105,7 +103,6 @@ local function runFuseSequence()
 
     for _, slot in ipairs({ "One", "Two" }) do
         if not currentCycleActive then break end
-
         local stick
         repeat
             sticksFolder, inputFolder = findFuseComponents()
@@ -179,7 +176,6 @@ end
 local function runValveHunter()
     ValvesDone = false
     local root = getRoot()
-
     while currentCycleActive do
         local map
         for _, obj in ipairs(workspace:GetChildren()) do
@@ -188,7 +184,6 @@ local function runValveHunter()
                 break
             end
         end
-
         if not map then ValvesDone = true return end
 
         local valves = map.Puzzles.Valves
@@ -217,6 +212,7 @@ end
 -- FUSE PROMPT WAIT
 --------------------------------------------------------------------
 local function waitForFusePrompts()
+    waitingForFuse = true
     while true do
         local sticks = select(1, findFuseComponents())
         local s = sticks and sticks:GetChildren()[1]
@@ -224,6 +220,7 @@ local function waitForFusePrompts()
             and lp.Character
             and lp.Character:FindFirstChild("Humanoid")
             and lp.Character.Humanoid.Health > 0 then
+            waitingForFuse = false
             return
         end
         task.wait(0.1)
@@ -241,15 +238,21 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- MAP WATCHDOG WITH COOLDOWN (RESET CYCLE ONLY)
+-- MAP WATCHDOG
 --------------------------------------------------------------------
 local CHECK_INTERVAL = 60
 local RESET_COOLDOWN = 120
+local REQUIRED_FAILS = 2
 local lastResetTime = 0
+local failCount = 0
 
 task.spawn(function()
     while true do
         task.wait(CHECK_INTERVAL)
+        if waitingForFuse then
+            failCount = 0
+            continue
+        end
 
         local mapFound = false
         for _, obj in ipairs(workspace:GetChildren()) do
@@ -259,13 +262,22 @@ task.spawn(function()
             end
         end
 
-        if not mapFound and currentCycleActive then
-            local now = os.clock()
-            if now - lastResetTime >= RESET_COOLDOWN then
-                lastResetTime = now
-                currentCycleActive = false
-                FuseDone, ScreensDone, ValvesDone = false, false, false
-                print("[WATCHDOG] Map missing — cycle reset.")
+        if mapFound then
+            failCount = 0
+        else
+            failCount += 1
+            if failCount >= REQUIRED_FAILS then
+                local now = os.clock()
+                if now - lastResetTime >= RESET_COOLDOWN then
+                    lastResetTime = now
+                    failCount = 0
+                    currentCycleActive = false
+                    waitingForFuse = true
+                    FuseDone = false
+                    ScreensDone = false
+                    ValvesDone = false
+                    print("[WATCHDOG] Map missing — cycle reset")
+                end
             end
         end
     end
@@ -277,7 +289,6 @@ end)
 task.spawn(function()
     while true do
         cycleCount += 1
-
         FuseDone, ScreensDone, ValvesDone = false, false, false
         currentCycleActive = false
 
@@ -286,6 +297,7 @@ task.spawn(function()
 
         print("Prompts found, starting cycle...")
         currentCycleActive = true
+        waitingForFuse = false
 
         task.spawn(startScreenSolver)
         task.spawn(runFuseSequence)
@@ -307,6 +319,7 @@ task.spawn(function()
         end
 
         currentCycleActive = false
+        waitingForFuse = true
         task.wait(2)
 
         if cycleCount >= 60 then
