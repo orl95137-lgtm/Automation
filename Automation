@@ -27,20 +27,20 @@ local function getRoot()
 end
 
 local function markProgress()
-    -- no-op
+    -- no-op; previously used for watchdog
 end
 
 local function resetWatchdog()
-    -- no-op
+    -- no-op; previously used for watchdog
 end
 
 --------------------------------------------------------------------
 -- ANTI AFK
 --------------------------------------------------------------------
 lp.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(,), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(, ), workspace.CurrentCamera.CFrame)
     task.wait(.1)
-    VirtualUser:Button2Up(Vector2.new(,), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Up(Vector2.new(, ), workspace.CurrentCamera.CFrame)
 end)
 
 --------------------------------------------------------------------
