@@ -1,6 +1,6 @@
---------------------------------------------------------------------
+-- ====================================================================
 -- CORE SERVICES
---------------------------------------------------------------------
+-- ====================================================================
 local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,13 +8,13 @@ local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local placeId = game.PlaceId
 
---------------------------------------------------------------------
+-- ====================================================================
 -- STATE
---------------------------------------------------------------------
+-- ====================================================================
 local FuseDone = false
 local ScreensDone = false
 local ValvesDone = false
-local cycleCount = 0  -- start at zero
+local cycleCount = 0 -- start at zero
 local currentCycleActive = false
 
 local function getChar()
@@ -34,18 +34,18 @@ local function resetWatchdog()
     -- no-op; previously used for watchdog
 end
 
---------------------------------------------------------------------
+-- ====================================================================
 -- ANTI AFK
---------------------------------------------------------------------
+-- ====================================================================
 lp.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
 
---------------------------------------------------------------------
+-- ====================================================================
 -- FUSE HELPERS
---------------------------------------------------------------------
+-- ====================================================================
 local function findFuseComponents()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj.Name == "Fuse" and obj:FindFirstChild("Sticks") and obj:FindFirstChild("Input") then
@@ -78,9 +78,9 @@ local function interact(target)
     end
 end
 
---------------------------------------------------------------------
+-- ====================================================================
 -- FUSE SEQUENCE + AUTO TASER
---------------------------------------------------------------------
+-- ====================================================================
 local function runFuseSequence()
     FuseDone = false
 
@@ -149,9 +149,9 @@ local function runFuseSequence()
     FuseDone = true
 end
 
---------------------------------------------------------------------
+-- ====================================================================
 -- SCREEN SOLVER
---------------------------------------------------------------------
+-- ====================================================================
 local function startScreenSolver()
     ScreensDone = false
     local screens = workspace:FindFirstChild("Screens", true)
@@ -184,9 +184,9 @@ local function startScreenSolver()
     ScreensDone = true
 end
 
---------------------------------------------------------------------
+-- ====================================================================
 -- VALVE HUNTER
---------------------------------------------------------------------
+-- ====================================================================
 local function valvesDone(folder)
     for _, v in ipairs(folder:GetChildren()) do
         local p = v:FindFirstChildWhichIsA("ProximityPrompt", true)
