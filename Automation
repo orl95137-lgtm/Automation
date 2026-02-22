@@ -31,7 +31,6 @@ local function getRoot()
 end
 
 local function markProgress() end
-local function resetWatchdog() end
 
 --------------------------------------------------------------------
 -- ANTI AFK
@@ -95,7 +94,7 @@ local function runFuseSequence()
         if sticks[1] and sticks[1]:FindFirstChildOfClass("ProximityPrompt") then
             break
         end
-        task.wait(0.1)
+        task.wait(0.01) -- faster auto-tase
     end
 
     local root = getRoot()
@@ -238,22 +237,11 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- MAP WATCHDOG
+-- WATCHDOG
 --------------------------------------------------------------------
-local CHECK_INTERVAL = 60
-local RESET_COOLDOWN = 120
-local REQUIRED_FAILS = 2
-local lastResetTime = 0
-local failCount = 0
-
 task.spawn(function()
     while true do
-        task.wait(CHECK_INTERVAL)
-        if waitingForFuse then
-            failCount = 0
-            continue
-        end
-
+        task.wait(60)
         local mapFound = false
         for _, obj in ipairs(workspace:GetChildren()) do
             if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
@@ -261,24 +249,13 @@ task.spawn(function()
                 break
             end
         end
-
-        if mapFound then
-            failCount = 0
-        else
-            failCount += 1
-            if failCount >= REQUIRED_FAILS then
-                local now = os.clock()
-                if now - lastResetTime >= RESET_COOLDOWN then
-                    lastResetTime = now
-                    failCount = 0
-                    currentCycleActive = false
-                    waitingForFuse = true
-                    FuseDone = false
-                    ScreensDone = false
-                    ValvesDone = false
-                    print("[WATCHDOG] Map missing — cycle reset")
-                end
-            end
+        if not mapFound then
+            currentCycleActive = false
+            waitingForFuse = true
+            FuseDone = false
+            ScreensDone = false
+            ValvesDone = false
+            print("[WATCHDOG] Map missing — cycle reset")
         end
     end
 end)
