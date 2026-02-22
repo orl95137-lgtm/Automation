@@ -14,7 +14,7 @@ local placeId = game.PlaceId
 local FuseDone = false
 local ScreensDone = false
 local ValvesDone = false
-local cycleCount =   -- FIXED: start at zero
+local cycleCount = 0  -- start at zero
 local currentCycleActive = false
 
 local function getChar()
@@ -38,9 +38,9 @@ end
 -- ANTI AFK
 --------------------------------------------------------------------
 lp.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(, ), workspace.CurrentCamera.CFrame) -- FIXED
-    task.wait(.1)
-    VirtualUser:Button2Up(Vector2.new(, ), workspace.CurrentCamera.CFrame) -- FIXED
+    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    task.wait(0.1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
 
 --------------------------------------------------------------------
@@ -88,7 +88,7 @@ local function runFuseSequence()
     repeat
         sticksFolder, inputFolder = findFuseComponents()
         if not currentCycleActive then return end
-        task.wait(.2)
+        task.wait(0.2)
     until sticksFolder and inputFolder
 
     while currentCycleActive do
@@ -103,7 +103,7 @@ local function runFuseSequence()
         if sticks[1] and sticks[1]:FindFirstChildOfClass("ProximityPrompt") then
             break
         end
-        task.wait(.1)
+        task.wait(0.1)
     end
 
     local root = getRoot()
@@ -117,18 +117,18 @@ local function runFuseSequence()
             sticksFolder, inputFolder = findFuseComponents()
             if not sticksFolder then break end
             stick = sticksFolder:GetChildren()[1]
-            task.wait(.1)
+            task.wait(0.1)
         until stick or not currentCycleActive
 
         if stick and root then
-            root.CFrame = stick.CFrame * CFrame.new(, 2, ) -- FIXED
-            task.wait(.5)
+            root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+            task.wait(0.5)
             interact(stick)
 
             local input = inputFolder:FindFirstChild(slot)
             if input then
-                root.CFrame = input.CFrame * CFrame.new(, 2, ) -- FIXED
-                task.wait(.5)
+                root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
+                task.wait(0.5)
                 interact(input)
             end
         end
@@ -136,14 +136,14 @@ local function runFuseSequence()
 
     while currentCycleActive do
         local sticks, inputs = findFuseComponents()
-        if sticks and #sticks:GetChildren() ==  then -- FIXED
+        if sticks and #sticks:GetChildren() == 0 then
             local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
             local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
             if not a and not b then
                 break
             end
         end
-        task.wait(.1)
+        task.wait(0.1)
     end
 
     FuseDone = true
@@ -175,7 +175,7 @@ local function startScreenSolver()
                     fireclickdetector(click)
                     markProgress()
                 end
-                task.wait(.5)
+                task.wait(0.5)
             end
         end)
     end
@@ -222,4 +222,15 @@ local function runValveHunter()
         end
 
         for _, valve in ipairs(valves:GetChildren()) do
-            if not currentCycleActive then return
+            if not currentCycleActive then return end
+            local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt and prompt.Enabled then
+                fireproximityprompt(prompt)
+                markProgress()
+                task.wait(0.3)
+            end
+        end
+
+        task.wait(0.2)
+    end
+end
