@@ -17,6 +17,7 @@ local ValvesDone = false
 local cycleCount = 0
 local currentCycleActive = false
 local waitingForFuse = true
+local lastTimerValue = 0
 
 --------------------------------------------------------------------
 -- HELPERS
@@ -178,7 +179,7 @@ local function runValveHunter()
     while currentCycleActive do
         local map = workspace:FindFirstChild("Map")
         local puzzles = map and map:FindFirstChild("Puzzles")
-        local valves = puzzles and puzzles:FindFirstChildWhichIsA("Model") -- find any valve model
+        local valves = puzzles and puzzles:FindFirstChildWhichIsA("Model")
 
         if not map or not puzzles or not valves then
             ValvesDone = true
@@ -239,69 +240,49 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- WATCHDOG (map-only, idle-cycle reset)
+-- MAIN LOOP (TIMER-BASED START)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
-        task.wait(60)
+        -- Check Timer value
+        local timerValueObj = workspace:FindFirstChild("Timer")
+        local timerValue = timerValueObj and timerValueObj.Value or 0
+
         if not currentCycleActive then
-            local map = workspace:FindFirstChild("Map")
-            local puzzles = map and map:FindFirstChild("Puzzles")
-            local valves = puzzles and puzzles:FindFirstChildWhichIsA("Model") -- any valve model inside
+            if timerValue >= 120 or (lastTimerValue > 0 and lastTimerValue - timerValue >= 30) then
+                -- start new cycle automatically
+                cycleCount += 1
+                FuseDone, ScreensDone, ValvesDone = false, false, false
+                currentCycleActive = true
+                waitingForFuse = false
 
-            if not map or not puzzles or not valves then
-                waitingForFuse = true
-                FuseDone = false
-                ScreensDone = false
-                ValvesDone = false
-                print("[WATCHDOG] Map missing — cycle reset")
+                task.spawn(startScreenSolver)
+                task.spawn(runFuseSequence)
+                task.spawn(runValveHunter)
             end
         end
-    end
-end)
 
---------------------------------------------------------------------
--- MAIN LOOP
---------------------------------------------------------------------
-task.spawn(function()
-    while true do
-        cycleCount += 1
-        FuseDone, ScreensDone, ValvesDone = false, false, false
-        currentCycleActive = false
+        lastTimerValue = timerValue
 
-        print("Waiting for prompts...")
-        waitForFusePrompts()
-
-        print("Prompts found, starting cycle...")
-        currentCycleActive = true
-        waitingForFuse = false
-
-        task.spawn(startScreenSolver)
-        task.spawn(runFuseSequence)
-        task.spawn(runValveHunter)
-
-        while currentCycleActive and not (FuseDone and ScreensDone and ValvesDone) do
-            if not lp.Character
-                or not lp.Character:FindFirstChild("Humanoid")
-                or lp.Character.Humanoid.Health <= 0 then
-                currentCycleActive = false
-                break
+        -- Monitor active cycle
+        if currentCycleActive then
+            while currentCycleActive and not (FuseDone and ScreensDone and ValvesDone) do
+                if not lp.Character or not lp.Character:FindFirstChild("Humanoid") or lp.Character.Humanoid.Health <= 0 then
+                    currentCycleActive = false
+                    break
+                end
+                task.wait(0.1)
             end
-            task.wait(0.1)
+
+            if currentCycleActive and FuseDone and ScreensDone and ValvesDone then
+                local hum = getChar():FindFirstChildOfClass("Humanoid")
+                if hum then hum.Health = 0 end
+            end
+
+            currentCycleActive = false
+            waitingForFuse = true
         end
 
-        if currentCycleActive and FuseDone and ScreensDone and ValvesDone then
-            local hum = getChar():FindFirstChildOfClass("Humanoid")
-            if hum then hum.Health = 0 end
-        end
-
-        currentCycleActive = false
-        waitingForFuse = true
-        task.wait(2)
-
-        if cycleCount >= 60 then
-            rejoin()
-            break
-        end
+        task.wait(1)
     end
 end)
