@@ -75,41 +75,50 @@ local function interact(target)
 end
 
 --------------------------------------------------------------------
--- FUSE SEQUENCE + AUTO TASER
+-- FUSE SEQUENCE + AUTO TASER (WATCHDOG-FREE)
 --------------------------------------------------------------------
 local function runFuseSequence()
     FuseDone = false
     local sticksFolder, inputFolder
+
+    -- wait for fuse to spawn (max 20s)
+    local startTime = tick()
     repeat
         sticksFolder, inputFolder = findFuseComponents()
         if not currentCycleActive then return end
         task.wait(0.2)
-    until sticksFolder and inputFolder
+    until (sticksFolder and inputFolder) or (tick() - startTime > 20)
 
-    while currentCycleActive do
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local taser = remotes and remotes:FindFirstChild("UseTaser")
-        if taser then taser:FireServer() end
+    if not sticksFolder or not inputFolder then
+        FuseDone = true
+        return
+    end
 
+    -- auto-tase while waiting for sticks
+    local taserRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("UseTaser")
+    startTime = tick()
+    while currentCycleActive and tick() - startTime < 15 do
+        if taserRemote then taserRemote:FireServer() end
         local sticks = sticksFolder:GetChildren()
         if sticks[1] and sticks[1]:FindFirstChildOfClass("ProximityPrompt") then
             break
         end
-        task.wait(0.01) -- faster auto-tase
+        task.wait(0.05)
     end
 
     local root = getRoot()
-    if not root then return end
+    if not root then FuseDone = true return end
 
+    -- insert sticks and inputs
     for _, slot in ipairs({ "One", "Two" }) do
         if not currentCycleActive then break end
         local stick
+        startTime = tick()
         repeat
             sticksFolder, inputFolder = findFuseComponents()
-            if not sticksFolder then break end
-            stick = sticksFolder:GetChildren()[1]
+            stick = sticksFolder and sticksFolder:GetChildren()[1]
             task.wait(0.1)
-        until stick or not currentCycleActive
+        until stick or tick() - startTime > 10 or not currentCycleActive
 
         if stick then
             root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
@@ -125,9 +134,11 @@ local function runFuseSequence()
         end
     end
 
-    while currentCycleActive do
+    -- wait for fuse to clear (max 10s)
+    startTime = tick()
+    while currentCycleActive and tick() - startTime < 10 do
         local sticks, inputs = findFuseComponents()
-        if sticks and #sticks:GetChildren() == 0 then
+        if sticks and #sticks:GetChildren() == 0 and inputs then
             local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
             local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
             if not a and not b then break end
@@ -139,7 +150,7 @@ local function runFuseSequence()
 end
 
 --------------------------------------------------------------------
--- SCREEN SOLVER
+-- SCREEN SOLVER (WATCHDOG-FREE)
 --------------------------------------------------------------------
 local function startScreenSolver()
     ScreensDone = false
@@ -163,7 +174,7 @@ local function startScreenSolver()
 end
 
 --------------------------------------------------------------------
--- VALVE HUNTER
+-- VALVE HUNTER (WATCHDOG-FREE)
 --------------------------------------------------------------------
 local function valvesDone(folder)
     for _, v in ipairs(folder:GetChildren()) do
@@ -181,12 +192,7 @@ local function runValveHunter()
         local puzzles = map and map:FindFirstChild("Puzzles")
         local valves = puzzles and puzzles:FindFirstChildWhichIsA("Model")
 
-        if not map or not puzzles or not valves then
-            ValvesDone = true
-            return
-        end
-
-        if valvesDone(valves) then
+        if not map or not puzzles or not valves or valvesDone(valves) then
             ValvesDone = true
             return
         end
@@ -211,25 +217,6 @@ local function runValveHunter()
 end
 
 --------------------------------------------------------------------
--- FUSE PROMPT WAIT
---------------------------------------------------------------------
-local function waitForFusePrompts()
-    waitingForFuse = true
-    while true do
-        local sticks = select(1, findFuseComponents())
-        local s = sticks and sticks:GetChildren()[1]
-        if s and s:FindFirstChildOfClass("ProximityPrompt")
-            and lp.Character
-            and lp.Character:FindFirstChild("Humanoid")
-            and lp.Character.Humanoid.Health > 0 then
-            waitingForFuse = false
-            return
-        end
-        task.wait(0.1)
-    end
-end
-
---------------------------------------------------------------------
 -- AUTO REJOIN + AUTO EXECUTE
 --------------------------------------------------------------------
 local function rejoin()
@@ -240,17 +227,16 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- MAIN LOOP (TIMER-BASED START)
+-- MAIN LOOP (WATCHDOG-FREE)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
-        -- Check Timer value
         local timerValueObj = workspace:FindFirstChild("Timer")
         local timerValue = timerValueObj and timerValueObj.Value or 0
 
+        -- Start new cycle if timer triggers
         if not currentCycleActive then
             if timerValue >= 120 or (lastTimerValue > 0 and lastTimerValue - timerValue >= 30) then
-                -- start new cycle automatically
                 cycleCount += 1
                 FuseDone, ScreensDone, ValvesDone = false, false, false
                 currentCycleActive = true
@@ -266,7 +252,8 @@ task.spawn(function()
 
         -- Monitor active cycle
         if currentCycleActive then
-            while currentCycleActive and not (FuseDone and ScreensDone and ValvesDone) do
+            local startTime = tick()
+            while currentCycleActive and not (FuseDone and ScreensDone and ValvesDone) and tick() - startTime < 60 do
                 if not lp.Character or not lp.Character:FindFirstChild("Humanoid") or lp.Character.Humanoid.Health <= 0 then
                     currentCycleActive = false
                     break
@@ -274,11 +261,7 @@ task.spawn(function()
                 task.wait(0.1)
             end
 
-            if currentCycleActive and FuseDone and ScreensDone and ValvesDone then
-                local hum = getChar():FindFirstChildOfClass("Humanoid")
-                if hum then hum.Health = 0 end
-            end
-
+            -- End cycle safely (no forced death)
             currentCycleActive = false
             waitingForFuse = true
         end
