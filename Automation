@@ -177,13 +177,18 @@ local function runValveHunter()
     local root = getRoot()
     while currentCycleActive do
         local map = workspace:FindFirstChild("Map")
-        if not map or not map:FindFirstChild("Puzzles") or not map.Puzzles:FindFirstChild("Valves") then
+        local puzzles = map and map:FindFirstChild("Puzzles")
+        local valves = puzzles and puzzles:FindFirstChildWhichIsA("Model") -- find any valve model
+
+        if not map or not puzzles or not valves then
             ValvesDone = true
             return
         end
 
-        local valves = map.Puzzles.Valves
-        if valvesDone(valves) then ValvesDone = true return end
+        if valvesDone(valves) then
+            ValvesDone = true
+            return
+        end
 
         for _, valve in ipairs(valves:GetChildren()) do
             if not currentCycleActive then return end
@@ -224,24 +229,27 @@ local function waitForFusePrompts()
 end
 
 --------------------------------------------------------------------
--- AUTO REJOIN
+-- AUTO REJOIN + AUTO EXECUTE
 --------------------------------------------------------------------
 local function rejoin()
-    lp.OnTeleport:Connect(function()
+    QueueOnTeleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/Automation/50cce8e4e7fff3bddf9286f5dc441fa31a30b25d/Automation"))()
-    end)
+    ]])
     TeleportService:Teleport(placeId, lp)
 end
 
 --------------------------------------------------------------------
--- WATCHDOG (checks only workspace.Map)
+-- WATCHDOG (map-only, idle-cycle reset)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
         task.wait(60)
         if not currentCycleActive then
             local map = workspace:FindFirstChild("Map")
-            if not map or not map:FindFirstChild("Puzzles") or not map.Puzzles:FindFirstChild("Valves") then
+            local puzzles = map and map:FindFirstChild("Puzzles")
+            local valves = puzzles and puzzles:FindFirstChildWhichIsA("Model") -- any valve model inside
+
+            if not map or not puzzles or not valves then
                 waitingForFuse = true
                 FuseDone = false
                 ScreensDone = false
