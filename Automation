@@ -176,14 +176,11 @@ local function runValveHunter()
     ValvesDone = false
     local root = getRoot()
     while currentCycleActive do
-        local map
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
-                map = obj
-                break
-            end
+        local map = workspace:FindFirstChild("Map")
+        if not map or not map:FindFirstChild("Puzzles") or not map.Puzzles:FindFirstChild("Valves") then
+            ValvesDone = true
+            return
         end
-        if not map then ValvesDone = true return end
 
         local valves = map.Puzzles.Valves
         if valvesDone(valves) then ValvesDone = true return end
@@ -237,25 +234,20 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- WATCHDOG
+-- WATCHDOG (checks only workspace.Map)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
         task.wait(60)
-        local mapFound = false
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
-                mapFound = true
-                break
+        if not currentCycleActive then
+            local map = workspace:FindFirstChild("Map")
+            if not map or not map:FindFirstChild("Puzzles") or not map.Puzzles:FindFirstChild("Valves") then
+                waitingForFuse = true
+                FuseDone = false
+                ScreensDone = false
+                ValvesDone = false
+                print("[WATCHDOG] Map missing — cycle reset")
             end
-        end
-        if not mapFound then
-            currentCycleActive = false
-            waitingForFuse = true
-            FuseDone = false
-            ScreensDone = false
-            ValvesDone = false
-            print("[WATCHDOG] Map missing — cycle reset")
         end
     end
 end)
