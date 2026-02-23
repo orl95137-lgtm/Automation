@@ -1,10 +1,10 @@
---------------------------------------------------------------------
+ --------------------------------------------------------------------
 -- CORE SERVICES
 --------------------------------------------------------------------
-local Players         = game:GetService("Players")
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService = game:GetService("TeleportService")
-local VirtualUser     = game:GetService("VirtualUser")
+local TeleportService   = game:GetService("TeleportService")
+local VirtualUser       = game:GetService("VirtualUser")
 
 local lp      = Players.LocalPlayer
 local placeId = game.PlaceId
@@ -13,11 +13,11 @@ local placeId = game.PlaceId
 -- CONFIG
 --------------------------------------------------------------------
 local CFG = {
-    MAX_CYCLES      = 60,
-    LOOP_TIMEOUT    = 60,
-    TELE_SETTLE     = 0.6,
-    VALVE_TIMEOUT   = 8,
-    CYCLE_WAIT      = 1.5,
+    MAX_CYCLES    = 60,
+    LOOP_TIMEOUT  = 60,
+    TELE_SETTLE   = 0.6,
+    VALVE_TIMEOUT = 8,
+    CYCLE_WAIT    = 1.5,
 }
 
 --------------------------------------------------------------------
@@ -43,6 +43,7 @@ local function waitTimeout(condition, timeout, interval)
         if condition() then return true end
         task.wait(interval)
     until tick() - t > timeout
+    Log(string.format("WARN: waitTimeout hit %ds limit", timeout))
     return false
 end
 
@@ -63,6 +64,13 @@ local function safeFirePrompt(prompt)
     return false
 end
 
+local function getPartCFrame(obj)
+    if obj:IsA("Model") then
+        return obj:GetPivot()
+    end
+    return obj.CFrame
+end
+
 local function teleportTo(cf)
     local root = getRoot()
     if root then
@@ -78,6 +86,7 @@ lp.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    Log("Anti-AFK triggered")
 end)
 
 --------------------------------------------------------------------
@@ -113,13 +122,22 @@ end
 local function runFuseSequence()
     FuseDone = false
 
+    -- Wait for fuse model
+    Log("Waiting for fuse model...")
     local sticks, inputs
     local ok = waitTimeout(function()
         sticks, inputs = findFuseComponents()
         return sticks ~= nil
     end)
-    if not ok then FuseDone = true return end
+    if not ok then
+        Log("Fuse model never found — skipping")
+        FuseDone = true
+        return
+    end
+    Log("Fuse model detected")
 
+    -- Fire taser until prompts appear
+    Log("Firing taser until fuse prompts appear...")
     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
     local taser   = remotes and remotes:FindFirstChild("UseTaser")
 
@@ -130,42 +148,90 @@ local function runFuseSequence()
     end)
 
     if not fusePromptsVisible(sticks) then
+        Log("Taser loop timed out — skipping fuse")
         FuseDone = true
         return
     end
+    Log("Fuse prompts active — inserting sticks")
 
+    -- Insert sticks into slots One and Two
     for _, slotName in ipairs({"One", "Two"}) do
+
+        -- Step 1: find a stick with an active prompt
         local stick
-        waitTimeout(function()
+        local gotStick = waitTimeout(function()
             sticks, inputs = findFuseComponents()
             stick = sticks and sticks:GetChildren()[1]
-            return stick ~= nil
+            return stick ~= nil and stick:FindFirstChildOfClass("ProximityPrompt") ~= nil
         end, 10)
 
-        if not stick then break end
+        if not gotStick or not stick then
+            Log("No stick found for slot " .. slotName)
+            break
+        end
 
-        local prompt = stick:FindFirstChildOfClass("ProximityPrompt")
-        if not prompt then break end
+        -- Step 2: teleport to stick and retry until server confirms pickup (stick leaves folder)
+        Log("Picking up stick for slot " .. slotName)
+        local pickupDeadline = tick() + 5
+        repeat
+            teleportTo(getPartCFrame(stick) * CFrame.new(0, 2, 0))
+            local prompt = stick:FindFirstChildOfClass("ProximityPrompt")
+            if prompt and prompt.Enabled then
+                safeFirePrompt(prompt)
+            end
+            task.wait(0.3)
+        until not stick.Parent or tick() > pickupDeadline
+        Log("Picked up stick for slot " .. slotName)
+        task.wait(0.3)
 
-        teleportTo(stick.CFrame * CFrame.new(0, 2, 0))
-        safeFirePrompt(prompt)
-        task.wait(0.4)
+        -- Step 3: re-fetch inputs in case the tree updated after pickup
+        sticks, inputs = findFuseComponents()
+        if not inputs then
+            Log("Inputs folder lost after pickup")
+            break
+        end
 
         local slot = inputs:FindFirstChild(slotName)
-        if not slot then break end
+        if not slot then
+            Log("Slot " .. slotName .. " not found")
+            break
+        end
 
-        local slotPrompt = slot:FindFirstChildOfClass("ProximityPrompt")
-        teleportTo(slot.CFrame * CFrame.new(0, 2, 0))
-        safeFirePrompt(slotPrompt)
-        task.wait(0.4)
+        -- Step 4: wait for slot prompt to become enabled
+        local slotPrompt
+        local promptReady = waitTimeout(function()
+            slotPrompt = slot:FindFirstChildOfClass("ProximityPrompt")
+            return slotPrompt ~= nil and slotPrompt.Enabled
+        end, 6)
+
+        if not promptReady then
+            Log("Slot " .. slotName .. " prompt never became active")
+            break
+        end
+
+        -- Step 5: teleport to slot and retry deposit until prompt disables (confirms deposit)
+        Log("Depositing stick into slot " .. slotName)
+        local depositDeadline = tick() + 5
+        repeat
+            teleportTo(getPartCFrame(slot) * CFrame.new(0, 2, 0))
+            if slotPrompt.Enabled then
+                safeFirePrompt(slotPrompt)
+            end
+            task.wait(0.3)
+        until not slotPrompt.Enabled or tick() > depositDeadline
+        Log("Deposited stick into slot " .. slotName)
+        task.wait(0.3)
     end
 
+    -- Wait for full completion confirmation
+    Log("Waiting for fuse completion...")
     waitTimeout(function()
         sticks, inputs = findFuseComponents()
         return fuseIsComplete(sticks, inputs)
     end)
 
     FuseDone = true
+    Log("Fuse sequence complete")
 end
 
 --------------------------------------------------------------------
@@ -173,9 +239,11 @@ end
 --------------------------------------------------------------------
 local function startScreenSolver()
     ScreensDone = false
+    Log("Starting screen solver")
 
     local screensFolder = workspace:FindFirstChild("Screens", true)
     if not screensFolder then
+        Log("No screens folder — skipping")
         ScreensDone = true
         return
     end
@@ -189,12 +257,16 @@ local function startScreenSolver()
             if typeof(screen.Color) == "Color3" and screen.Color.G >= 0.99 then break end
 
             local click = screen:FindFirstChild("PuzzleClickDetector", true)
-            if click then fireclickdetector(click) end
+            if click then
+                fireclickdetector(click)
+                Log("Clicked screen: " .. screen.Name)
+            end
             task.wait(0.4)
         end
     end
 
     ScreensDone = true
+    Log("Screens solved")
 end
 
 --------------------------------------------------------------------
@@ -220,15 +292,26 @@ end
 
 local function runValveHunter()
     ValvesDone = false
+    Log("Starting valve hunter")
+
     local root = getRoot()
-    if not root then ValvesDone = true return end
+    if not root then ValvesDone = true; return end
 
     local deadline = tick() + CFG.LOOP_TIMEOUT * 2
 
     while tick() < deadline do
         local valves = getValveFolder()
-        if not valves then ValvesDone = true return end
-        if allValvesComplete(valves) then ValvesDone = true return end
+        if not valves then
+            Log("No valve folder — skipping")
+            ValvesDone = true
+            return
+        end
+
+        if allValvesComplete(valves) then
+            Log("All valves complete")
+            ValvesDone = true
+            return
+        end
 
         for _, valve in ipairs(valves:GetChildren()) do
             local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -237,9 +320,10 @@ local function runValveHunter()
                 local pos = parent:IsA("Model")
                     and parent:GetPivot().Position
                     or parent.Position
-                local look = parent.CFrame.LookVector
+                local look  = parent.CFrame.LookVector
                 local start = tick()
 
+                Log("Working valve: " .. valve.Name)
                 while prompt.Enabled and tick() - start < CFG.VALVE_TIMEOUT do
                     root = getRoot()
                     if root then
@@ -248,12 +332,14 @@ local function runValveHunter()
                     end
                     task.wait(0.1)
                 end
+                Log("Valve done: " .. valve.Name)
             end
         end
 
         task.wait(0.1)
     end
 
+    Log("Valve hunter timed out")
     ValvesDone = true
 end
 
@@ -261,6 +347,7 @@ end
 -- AUTO REJOIN
 --------------------------------------------------------------------
 local function rejoin()
+    Log("Max cycles reached — rejoining")
     lp.OnTeleport:Connect(function()
         local src = game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/JustF/main/Goofy")
         loadstring(src)()
@@ -283,6 +370,7 @@ local function killAndRespawn()
     end, 15)
 
     task.wait(0.5)
+    Log("Character respawned")
 end
 
 --------------------------------------------------------------------
@@ -291,23 +379,31 @@ end
 task.spawn(function()
     while true do
         cycleCount += 1
+        Log("=== CYCLE " .. cycleCount .. " START ===")
 
         FuseDone, ScreensDone, ValvesDone = false, false, false
 
-        local ok = pcall(function()
+        local ok, err
+
+        ok, err = pcall(function()
             task.spawn(startScreenSolver)
             runFuseSequence()
         end)
-
         if not ok then
-            FuseDone, ScreensDone = true, true
+            Log("ERROR in fuse/screen: " .. tostring(err))
+            FuseDone    = true
+            ScreensDone = true
         end
 
-        ok = pcall(runValveHunter)
-        if not ok then ValvesDone = true end
+        ok, err = pcall(runValveHunter)
+        if not ok then
+            Log("ERROR in valves: " .. tostring(err))
+            ValvesDone = true
+        end
 
         FuseDone, ScreensDone, ValvesDone = true, true, true
 
+        Log("=== CYCLE " .. cycleCount .. " COMPLETE ===")
         task.wait(CFG.CYCLE_WAIT)
 
         if cycleCount >= CFG.MAX_CYCLES then
@@ -318,3 +414,4 @@ task.spawn(function()
         killAndRespawn()
     end
 end)
+```
