@@ -41,6 +41,18 @@ lp.Idled:Connect(function()
 end)
 
 --------------------------------------------------------------------
+-- TASER LOOP (separate, infinite)
+--------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        local taser = remotes and remotes:FindFirstChild("UseTaser")
+        if taser then taser:FireServer() end
+    end
+end)
+
+--------------------------------------------------------------------
 -- TIMER FINDER
 --------------------------------------------------------------------
 local function findTimerValue()
@@ -98,15 +110,11 @@ local function runFuseSequence()
 
     Log("Fuse model detected")
 
-    Log("Running taser until fuse prompts appear")
+    Log("Waiting for fuse prompts to appear")
     while true do
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local taser = remotes and remotes:FindFirstChild("UseTaser")
-        if taser then taser:FireServer() end
-
         local stick = sticksFolder:GetChildren()[1]
         if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
-            Log("Fuse prompts detected — stopping taser")
+            Log("Fuse prompts detected — proceeding")
             break
         end
         task.wait(0.1)
