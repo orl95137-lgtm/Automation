@@ -62,6 +62,13 @@ local function findFuseComponents()
     end
 end
 
+local function fusePromptsExist()
+    local sticksFolder = select(1, findFuseComponents())
+    if not sticksFolder then return false end
+    local stick = sticksFolder:GetChildren()[1]
+    return stick and stick:FindFirstChildOfClass("ProximityPrompt") ~= nil
+end
+
 local function interact(target)
     if not target then return end
     local prompt = target:FindFirstChildOfClass("ProximityPrompt")
@@ -326,7 +333,7 @@ end)
 
 --------------------------------------------------------------------
 -- FUSE PROMPT WATCHER
--- Trigger 2: Timer is <= 120 and fuse prompts appear early
+-- Trigger 2: Timer <= 120 and fuse prompts appear early
 --------------------------------------------------------------------
 task.spawn(function()
     Log("Waiting for Timer before starting fuse prompt watcher...")
@@ -341,16 +348,11 @@ task.spawn(function()
     while true do
         task.wait(0.1)
 
-        -- Only care if timer is at or below 120 and no cycle is running
         if timerObj.Value <= 120 and not cycleRunning then
-            local sticks = select(1, findFuseComponents())
-            local s = sticks and sticks:GetChildren()[1]
-
-            if s and s:FindFirstChildOfClass("ProximityPrompt") then
+            if fusePromptsExist() then
                 Log("Fuse prompts detected at Timer <= 120 — starting cycle early")
                 task.spawn(runCycle)
 
-                -- Wait until cycle finishes before watching again
                 repeat task.wait(0.5) until not cycleRunning
             end
         end
