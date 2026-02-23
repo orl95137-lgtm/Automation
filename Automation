@@ -129,22 +129,41 @@ local function runFuseSequence()
             task.wait(0.1)
         until stick
 
-        root.CFrame = stick.CFrame * CFrame.new(0,2,0)
-        task.wait(0.5)
-        interact(stick)
+        local stickCountBefore = #sticksFolder:GetChildren()
+        local deadline = tick() + 10
+        repeat
+            sticksFolder, inputFolder = findFuseComponents()
+            stick = sticksFolder:GetChildren()[1]
+            if not stick then break end
+            root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+            task.wait(0.1)
+            interact(stick)
+            task.wait(0.1)
+        until #sticksFolder:GetChildren() < stickCountBefore or tick() > deadline
+        Log("Stick picked up for slot " .. slot)
 
         local input = inputFolder:FindFirstChild(slot)
-        root.CFrame = input.CFrame * CFrame.new(0,2,0)
-        task.wait(0.5)
-        interact(input)
+        if input then
+            deadline = tick() + 10
+            repeat
+                sticksFolder, inputFolder = findFuseComponents()
+                input = inputFolder and inputFolder:FindFirstChild(slot)
+                if not input then break end
+                root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
+                task.wait(0.1)
+                interact(input)
+                task.wait(0.1)
+            until (not input or not input:FindFirstChildOfClass("ProximityPrompt")) or tick() > deadline
+            Log("Slot " .. slot .. " filled")
+        end
     end
 
     Log("Waiting for fuse completion confirmation")
     while true do
         local sticks, inputs = findFuseComponents()
         if sticks and #sticks:GetChildren() == 0 then
-            local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
-            local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
+            local a = inputs and inputs.One and inputs.One:FindFirstChildOfClass("ProximityPrompt")
+            local b = inputs and inputs.Two and inputs.Two:FindFirstChildOfClass("ProximityPrompt")
             if not a and not b then break end
         end
         task.wait(0.1)
@@ -226,15 +245,16 @@ local function runValveHunter()
                     and prompt.Parent:GetPivot().Position
                     or prompt.Parent.Position
 
-                local start = tick()
-                while prompt.Enabled and tick() - start < 6 do
+                while prompt and prompt.Enabled do
                     root.CFrame = CFrame.new(pos + prompt.Parent.CFrame.LookVector * 2)
                     fireproximityprompt(prompt)
-                    task.wait(0.1)
+                    task.wait(0.05)
                 end
-                Log("Valve completed: " .. valve.Name)
+                Log("Valve confirmed completed: " .. valve.Name)
             end
         end
+
+        task.wait(0.1)
     end
 end
 
