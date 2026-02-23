@@ -214,35 +214,26 @@ local function runValveHunter()
         end
 
         local valves = map.Puzzles.Valves
-
         if valvesDone(valves) then
             ValvesDone = true
-            Log("All valves confirmed done")
             return
         end
 
-        local foundAny = false
         for _, valve in ipairs(valves:GetChildren()) do
             local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt and prompt.Enabled then
-                foundAny = true
                 local pos = prompt.Parent:IsA("Model")
                     and prompt.Parent:GetPivot().Position
                     or prompt.Parent.Position
 
-                Log("Working on valve: " .. valve.Name)
-                while prompt and prompt.Enabled do
+                local start = tick()
+                while prompt.Enabled and tick() - start < 6 do
                     root.CFrame = CFrame.new(pos + prompt.Parent.CFrame.LookVector * 2)
                     fireproximityprompt(prompt)
-                    task.wait(0.05)
+                    task.wait(0.1)
                 end
-                Log("Valve confirmed completed: " .. valve.Name)
-                break
+                Log("Valve completed: " .. valve.Name)
             end
-        end
-
-        if not foundAny then
-            task.wait(0.1)
         end
     end
 end
