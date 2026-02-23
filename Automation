@@ -333,24 +333,17 @@ end)
 
 --------------------------------------------------------------------
 -- FUSE PROMPT WATCHER
--- Trigger 2: Timer <= 120 and fuse prompts appear early
+-- Trigger 2 (override): fuse prompts appear before timer drops by 30
 --------------------------------------------------------------------
 task.spawn(function()
-    Log("Waiting for Timer before starting fuse prompt watcher...")
-    local timerObj
-    repeat
-        timerObj = findTimerValue()
-        task.wait(0.5)
-    until timerObj
-
     Log("Fuse prompt watcher active")
 
     while true do
         task.wait(0.1)
 
-        if timerObj.Value <= 120 and not cycleRunning then
+        if not cycleRunning then
             if fusePromptsExist() then
-                Log("Fuse prompts detected at Timer <= 120 — starting cycle early")
+                Log("Fuse prompts detected — override trigger, starting cycle")
                 task.spawn(runCycle)
 
                 repeat task.wait(0.5) until not cycleRunning
