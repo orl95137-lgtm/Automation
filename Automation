@@ -289,8 +289,8 @@ local function runCycle()
 end
 
 --------------------------------------------------------------------
--- TIMER WATCHER
--- Fires runCycle() each time Timer was > 120 and drops by 30
+-- TIMER WATCHER (poll-based)
+-- Trigger 1: Timer was > 120 and drops by 30
 --------------------------------------------------------------------
 task.spawn(function()
     Log("Waiting for Timer in GameInformation...")
@@ -305,9 +305,11 @@ task.spawn(function()
     local DROP_THRESHOLD = 30
     local MIN_TIMER = 120
 
-    Log(string.format("Watching Timer — triggers when Timer > %d and drops by %d", MIN_TIMER, DROP_THRESHOLD))
+    Log(string.format("Polling Timer — triggers when Timer > %d and drops by %d", MIN_TIMER, DROP_THRESHOLD))
 
-    timerObj.Changed:Connect(function(newValue)
+    while true do
+        task.wait(0.1)
+        local newValue = timerObj.Value
         local delta = lastValue - newValue
 
         if lastValue > MIN_TIMER and delta >= DROP_THRESHOLD then
@@ -319,5 +321,38 @@ task.spawn(function()
         end
 
         lastValue = newValue
-    end)
+    end
+end)
+
+--------------------------------------------------------------------
+-- FUSE PROMPT WATCHER
+-- Trigger 2: Timer is <= 120 and fuse prompts appear early
+--------------------------------------------------------------------
+task.spawn(function()
+    Log("Waiting for Timer before starting fuse prompt watcher...")
+    local timerObj
+    repeat
+        timerObj = findTimerValue()
+        task.wait(0.5)
+    until timerObj
+
+    Log("Fuse prompt watcher active")
+
+    while true do
+        task.wait(0.1)
+
+        -- Only care if timer is at or below 120 and no cycle is running
+        if timerObj.Value <= 120 and not cycleRunning then
+            local sticks = select(1, findFuseComponents())
+            local s = sticks and sticks:GetChildren()[1]
+
+            if s and s:FindFirstChildOfClass("ProximityPrompt") then
+                Log("Fuse prompts detected at Timer <= 120 — starting cycle early")
+                task.spawn(runCycle)
+
+                -- Wait until cycle finishes before watching again
+                repeat task.wait(0.5) until not cycleRunning
+            end
+        end
+    end
 end)
