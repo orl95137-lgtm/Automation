@@ -44,17 +44,9 @@ end)
 -- TIMER FINDER
 --------------------------------------------------------------------
 local function findTimerValue()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj.Name == "Timer" or obj.Name == "timer") and
-           (obj:IsA("NumberValue") or obj:IsA("IntValue")) then
-            return obj
-        end
-    end
-    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-        if (obj.Name == "Timer" or obj.Name == "timer") and
-           (obj:IsA("NumberValue") or obj:IsA("IntValue")) then
-            return obj
-        end
+    local gameInfo = workspace:FindFirstChild("GameInformation")
+    if gameInfo then
+        return gameInfo:FindFirstChild("Timer")
     end
     return nil
 end
@@ -301,13 +293,13 @@ end
 -- Fires runCycle() each time Timer was > 120 and drops by 30
 --------------------------------------------------------------------
 task.spawn(function()
-    Log("Waiting for Timer value object...")
+    Log("Waiting for Timer in GameInformation...")
     local timerObj
     repeat
         timerObj = findTimerValue()
         task.wait(0.5)
     until timerObj
-    Log("Timer object found: " .. timerObj:GetFullName())
+    Log("Timer found: " .. timerObj:GetFullName())
 
     local lastValue = timerObj.Value
     local DROP_THRESHOLD = 30
