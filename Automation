@@ -122,48 +122,42 @@ local function runFuseSequence()
 
     local root = getRoot()
     for _, slot in ipairs({"One", "Two"}) do
+        -- Wait for a stick with a prompt
         local stick
         repeat
             sticksFolder, inputFolder = findFuseComponents()
             stick = sticksFolder:GetChildren()[1]
             task.wait(0.1)
-        until stick
+        until stick and stick:FindFirstChildOfClass("ProximityPrompt")
 
-        local stickCountBefore = #sticksFolder:GetChildren()
+        -- Teleport to stick and pick it up
+        root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+        task.wait(0.3)
+        interact(stick)
+        task.wait(0.3)
+        Log("Picked up stick for slot " .. slot)
+
+        -- Teleport to input and deposit — retry until prompt disappears
+        local input
         local deadline = tick() + 10
         repeat
             sticksFolder, inputFolder = findFuseComponents()
-            stick = sticksFolder:GetChildren()[1]
-            if not stick then break end
-            root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+            input = inputFolder and inputFolder:FindFirstChild(slot)
+            if not input then break end
+            root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
             task.wait(0.1)
-            interact(stick)
+            interact(input)
             task.wait(0.1)
-        until #sticksFolder:GetChildren() < stickCountBefore or tick() > deadline
-        Log("Stick picked up for slot " .. slot)
-
-        local input = inputFolder:FindFirstChild(slot)
-        if input then
-            deadline = tick() + 10
-            repeat
-                sticksFolder, inputFolder = findFuseComponents()
-                input = inputFolder and inputFolder:FindFirstChild(slot)
-                if not input then break end
-                root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
-                task.wait(0.1)
-                interact(input)
-                task.wait(0.1)
-            until (not input or not input:FindFirstChildOfClass("ProximityPrompt")) or tick() > deadline
-            Log("Slot " .. slot .. " filled")
-        end
+        until (not input or not input:FindFirstChildOfClass("ProximityPrompt")) or tick() > deadline
+        Log("Slot " .. slot .. " filled")
     end
 
     Log("Waiting for fuse completion confirmation")
     while true do
         local sticks, inputs = findFuseComponents()
-        if sticks and #sticks:GetChildren() == 0 then
-            local a = inputs and inputs.One and inputs.One:FindFirstChildOfClass("ProximityPrompt")
-            local b = inputs and inputs.Two and inputs.Two:FindFirstChildOfClass("ProximityPrompt")
+        if sticks and inputs then
+            local a = inputs.One and inputs.One:FindFirstChildOfClass("ProximityPrompt")
+            local b = inputs.Two and inputs.Two:FindFirstChildOfClass("ProximityPrompt")
             if not a and not b then break end
         end
         task.wait(0.1)
