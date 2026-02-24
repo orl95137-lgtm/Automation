@@ -187,7 +187,7 @@ local function startScreenSolver()
     local screens = workspace:FindFirstChild("Screens", true)
     if not screens then
         ScreensDone = true
-        Log("No screens found")
+        Log screens found")
         return
     end
 
@@ -271,14 +271,35 @@ end
 --------------------------------------------------------------------
 local function waitForFusePrompts()
     Log("Waiting for fuse prompts")
+
+    local timerObj = findTimerValue()
+    if not timerObj then
+        Log("Timer not found, aborting cycle")
+        cycleAborted = true
+        return
+    end
+
+    local ABORT_THRESHOLD = 20
+
     while true do
-        local sticks = select(1, findFuseComponents())
-        local s = sticks and sticks:GetChildren()[1]
+        if cycleAborted then
+            return
+        end
+
+        local sticksFolder = select(1, findFuseComponents())
+        local s = sticksFolder and sticksFolder:GetChildren()[1]
         if s and s:FindFirstChildOfClass("ProximityPrompt") then
             FusePromptsSeen = true
             Log("Fuse prompts detected")
             return
         end
+
+        if timerObj.Value < ABORT_THRESHOLD then
+            Log("Timer below 20 — aborting cycle")
+            cycleAborted = true
+            return
+        end
+
         task.wait(0.1)
     end
 end
@@ -375,33 +396,25 @@ task.spawn(function()
 
         if not cycleRunning and lastValue > MIN_TIMER and delta >= DROP_THRESHOLD then
             Log(string.format(
-                "Timer trigger: %.1f → %.1f (dropped %d) — starting cycle",
+                "Timer trigger: %.1f → %.1f (dropped %d) cycle",
                 lastValue, newValue, delta
             ))
-            task.spawn(runCycle)
-        end
-
-        lastValue = newValue
+            task.spawn(runCycle)lastValue = newValue
     end
 end)
 
 --------------------------------------------------------------------
 -- FUSE PROMPT WATCHER
--- Trigger 2 (override): fuse prompts appear before timer drops by 30
---------------------------------------------------------------------
+-- Trigger 2 override): fuse prompts appear before timer drops by----------------------------------------------------------------
 task.spawn(function()
-    Log("Fuse prompt watcher active")
-
-    while true do
+    Log("Fuse prompt watcher active")do
         task.wait(0.1)
 
-        if not cycleRunning then
-            if fusePromptsExist() then
-                Log("Fuse prompts detected — override trigger, starting cycle")
+        if not cycleRunning then fusePromptsExist() then
+                Log("Fuse prompts detected — override trigger starting cycle")
                 task.spawn(runCycle)
 
                 repeat task.wait(0.5) until not cycleRunning
             end
         end
-    end
-end)
+    en
