@@ -102,34 +102,34 @@ local function runFuseSequence()
             repeat
                 sticksFolder, inputFolder = findFuseComponents()
                 stick = sticksFolder:GetChildren()[1]
-                task.wait(0.1)
+                task.wait(0.05)
             until stick
 
             -- PICKUP
             root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
-            task.wait(0.5)
+            task.wait(0.1)
             interact(stick)
-            task.wait(1)
+            task.wait(0.1)
 
             -- DEPOSIT
             local input = inputFolder:FindFirstChild(slotName)
             root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
-            task.wait(0.5)
+            task.wait(0.1)
 
             local start = tick()
-            while tick() - start < 3 do
+            while tick() - start < 2 do
                 local prompt = input:FindFirstChildOfClass("ProximityPrompt")
                 if not prompt then
                     Log("Deposit accepted for slot " .. slotName)
                     break
                 end
                 fireproximityprompt(prompt)
-                task.wait(0.1)
+                task.wait(0.05)
             end
         end
 
         Log("Checking fuse completion...")
-        local deadline = tick() + 5
+        local deadline = tick() + 3
         while tick() < deadline do
             local sticks, inputs = findFuseComponents()
             if sticks and #sticks:GetChildren() == 0 then
@@ -140,11 +140,11 @@ local function runFuseSequence()
                     break
                 end
             end
-            task.wait(0.1)
+            task.wait(0.05)
         end
 
         if not confirmed then
-            Log("Fuse confirmation failed — retrying collection")
+            Log("Fuse confirmation failed — retrying")
         end
     end
 
