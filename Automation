@@ -98,10 +98,19 @@ local function runFuseSequence()
     local confirmed = false
     while not confirmed do
         for _, slotName in ipairs({"One", "Two"}) do
+            -- Check if any sticks are left before trying to pick one up
+            sticksFolder, inputFolder = findFuseComponents()
+            if not sticksFolder or #sticksFolder:GetChildren() == 0 then
+                Log("No sticks left for slot " .. slotName .. " — skipping")
+                break
+            end
+
             local stick
             repeat
                 sticksFolder, inputFolder = findFuseComponents()
-                stick = sticksFolder:GetChildren()[1]
+                if sticksFolder then
+                    stick = sticksFolder:GetChildren()[1]
+                end
                 task.wait(0.1)
             until stick
 
