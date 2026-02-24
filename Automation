@@ -184,6 +184,7 @@ local function runValveHunter()
     Log("Starting valve hunter")
 
     local root = getRoot()
+    local hum = getChar():FindFirstChildOfClass("Humanoid")
 
     while true do
         local map
@@ -211,12 +212,19 @@ local function runValveHunter()
                 local pos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
                 local targetCFrame = parent:IsA("Model") and parent:GetPivot() or parent.CFrame
 
+                root.Anchored = true
+                if hum then hum.PlatformStand = true end
+
                 local start = tick()
                 while prompt.Enabled and tick() - start < 6 do
                     root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
                     fireproximityprompt(prompt)
                     task.wait(0.1)
                 end
+
+                root.Anchored = false
+                if hum then hum.PlatformStand = false end
+
                 Log("Valve completed: " .. valve.Name)
             end
         end
