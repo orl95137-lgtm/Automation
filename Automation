@@ -111,17 +111,16 @@ local function runFuseSequence()
             interact(stick)
             task.wait(1)
 
-            -- DEPOSIT (3 studs in front of the slot's facing direction)
+            -- DEPOSIT — stay on this slot until its prompt disappears
             local input = inputFolder:FindFirstChild(slotName)
             local inputCFrame = input:IsA("Model") and input:GetPivot() or input.CFrame
             root.CFrame = inputCFrame * CFrame.new(0, 0, 3)
             task.wait(1)
 
-            local start = tick()
-            while tick() - start < 3 do
+            while true do
                 local prompt = input:FindFirstChildOfClass("ProximityPrompt")
                 if not prompt then
-                    Log("Deposit accepted for slot " .. slotName)
+                    Log("Slot " .. slotName .. " accepted — moving on")
                     break
                 end
                 fireproximityprompt(prompt)
