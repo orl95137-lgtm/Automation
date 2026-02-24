@@ -16,6 +16,7 @@ local ScreensDone = false
 local ValvesDone = false
 local FusePromptsSeen = false
 local cycleCount = 0
+local cycleRunning = false
 
 local function Log(msg)
     print("[AUTO] " .. msg)
@@ -37,6 +38,18 @@ lp.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end)
+
+--------------------------------------------------------------------
+-- TASER LOOP
+--------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        local taser = remotes and remotes:FindFirstChild("UseTaser")
+        if taser then taser:FireServer() end
+    end
 end)
 
 --------------------------------------------------------------------
@@ -70,6 +83,13 @@ local function interactWithTarget(target, holdTime)
     return false
 end
 
+local function fusePromptsExist()
+    local sticksFolder = select(1, findFuseComponents())
+    if not sticksFolder then return false end
+    local stick = sticksFolder:GetChildren()[1]
+    return stick and stick:FindFirstChildOfClass("ProximityPrompt") ~= nil
+end
+
 local function runFuseSequence()
     FuseDone = false
     Log("Waiting for fuse model...")
@@ -82,15 +102,11 @@ local function runFuseSequence()
 
     Log("Fuse model detected")
 
-    Log("Running taser until fuse prompts appear")
+    Log("Waiting for fuse prompts to appear")
     while true do
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local taser = remotes and remotes:FindFirstChild("UseTaser")
-        if taser then taser:FireServer() end
-
         local stick = sticksFolder:GetChildren()[1]
         if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
-            Log("Fuse prompts detected — stopping taser")
+            Log("Fuse prompts detected — proceeding")
             break
         end
         task.wait(0.1)
@@ -184,7 +200,6 @@ local function runValveHunter()
     Log("Starting valve hunter")
 
     local root = getRoot()
-    local hum = getChar():FindFirstChildOfClass("Humanoid")
 
     while true do
         local map
@@ -212,19 +227,12 @@ local function runValveHunter()
                 local pos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
                 local targetCFrame = parent:IsA("Model") and parent:GetPivot() or parent.CFrame
 
-                root.Anchored = true
-                if hum then hum.PlatformStand = true end
-
                 local start = tick()
                 while prompt.Enabled and tick() - start < 6 do
                     root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
                     fireproximityprompt(prompt)
                     task.wait(0.1)
                 end
-
-                root.Anchored = false
-                if hum then hum.PlatformStand = false end
-
                 Log("Valve completed: " .. valve.Name)
             end
         end
@@ -262,32 +270,99 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- MAIN LOOP
+-- SINGLE CYCLE
 --------------------------------------------------------------------
+local function runCycle()
+    if cycleRunning then
+        Log("Cycle already running — skipping trigger")
+        return
+    end
+    cycleRunning = true
+    cycleCount += 1
+    Log("=== CYCLE " .. cycleCount .. " START ===")
+
+    FuseDone, ScreensDone, ValvesDone = false, false, false
+
+    waitForFusePrompts()
+    task.spawn(startScreenSolver)
+    runFuseSequence()
+    runValveHunter()
+
+    while not (FuseDone and ScreensDone and ValvesDone) do
+        task.wait(0.1)
+    end
+
+    Log("Cycle complete — resetting character")
+    local hum = getChar():FindFirstChildOfClass("Humanoid")
+    if hum then hum.Health = 0 end
+    task.wait(1)
+
+    cycleRunning = false
+
+    if cycleCount >= 60 then
+        rejoin()
+    end
+end
+
+--------------------------------------------------------------------
+-- TIMER WATCHER
+--------------------------------------------------------------------
+local function findTimerValue()
+    local gameInfo = workspace:FindFirstChild("GameInformation")
+    if gameInfo then
+        return gameInfo:FindFirstChild("Timer")
+    end
+    return nil
+end
+
 task.spawn(function()
+    Log("Waiting for Timer in GameInformation...")
+    local timerObj
+    repeat
+        timerObj = findTimerValue()
+        task.wait(0.5)
+    until timerObj
+    Log("Timer found: " .. timerObj:GetFullName())
+
+    local lastValue = timerObj.Value
+    local DROP_THRESHOLD = 30
+    local MIN_TIMER = 120
+
+    Log(string.format("Polling Timer — triggers when Timer > %d and drops by %d", MIN_TIMER, DROP_THRESHOLD))
+
     while true do
-        cycleCount += 1
-        Log("=== CYCLE " .. cycleCount .. " START ===")
+        task.wait(0.1)
+        local newValue = timerObj.Value
+        local delta = lastValue - newValue
 
-        FuseDone, ScreensDone, ValvesDone = false, false, false
-
-        waitForFusePrompts()
-        task.spawn(startScreenSolver)
-        runFuseSequence()
-        runValveHunter()
-
-        while not (FuseDone and ScreensDone and ValvesDone) do
-            task.wait(0.1)
+        if lastValue > MIN_TIMER and delta >= DROP_THRESHOLD then
+            Log(string.format(
+                "Timer trigger: %.1f → %.1f (dropped %d) — starting cycle",
+                lastValue, newValue, delta
+            ))
+            task.spawn(runCycle)
         end
 
-        Log("Cycle complete — resetting character")
-        local hum = getChar():FindFirstChildOfClass("Humanoid")
-        if hum then hum.Health = 0 end
-        task.wait(1)
+        lastValue = newValue
+    end
+end)
 
-        if cycleCount >= 60 then
-            rejoin()
-            break
+--------------------------------------------------------------------
+-- FUSE PROMPT WATCHER
+--------------------------------------------------------------------
+task.spawn(function()
+    Log("Fuse prompt watcher active")
+
+    while true do
+        task.wait(0.1)
+
+        if not cycleRunning then
+            if fusePromptsExist() then
+                Log("Fuse prompts detected — override trigger, starting cycle")
+                task.spawn(runCycle)
+
+                repeat task.wait(0.5) until not cycleRunning
+            end
         end
     end
 end)
