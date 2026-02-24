@@ -111,9 +111,10 @@ local function runFuseSequence()
             interact(stick)
             task.wait(1)
 
-            -- DEPOSIT
+            -- DEPOSIT (3 studs in front of the slot's facing direction)
             local input = inputFolder:FindFirstChild(slotName)
-            root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
+            local inputCFrame = input:IsA("Model") and input:GetPivot() or input.CFrame
+            root.CFrame = inputCFrame * CFrame.new(0, 0, 3)
             task.wait(1)
 
             local start = tick()
