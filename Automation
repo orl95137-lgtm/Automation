@@ -53,7 +53,6 @@ end
 local function interactWithTarget(target, holdTime)
     if not target then return false end
     local prompt = target:FindFirstChildOfClass("ProximityPrompt")
-
     if not prompt then
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") and (v.Parent.Position - target.Position).Magnitude < 10 then
@@ -62,10 +61,9 @@ local function interactWithTarget(target, holdTime)
             end
         end
     end
-
     if prompt then
-        Log("Interacting with: " .. target.Name)
         fireproximityprompt(prompt)
+        Log("Interacted with " .. target.Name)
         if holdTime then task.wait(holdTime) end
         return true
     end
@@ -98,12 +96,9 @@ local function runFuseSequence()
         task.wait(0.1)
     end
 
-    Log("Beginning fuse pickup sequence...")
-
     local root = getRoot()
-    local slots = {"One", "Two"}
 
-    for _, slotName in ipairs(slots) do
+    for _, slotName in ipairs({"One", "Two"}) do
         sticksFolder, inputFolder = findFuseComponents()
         local stick = sticksFolder:GetChildren()[1]
         local input = inputFolder:FindFirstChild(slotName)
@@ -115,31 +110,26 @@ local function runFuseSequence()
             task.wait(0.1)
         end
 
-        Log("Teleporting above stick: " .. stick.Name)
         root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
         task.wait(0.6)
-
         interactWithTarget(stick)
         task.wait(0.5)
 
-        Log("Teleporting above input slot: " .. slotName)
         root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
         task.wait(0.6)
-
         interactWithTarget(input)
         task.wait(0.5)
     end
 
-    Log("Waiting for fuse to fully complete...")
-
-    while true do
-        sticksFolder, inputFolder = findFuseComponents()
-        if sticksFolder then
-            local slot1Prompt = inputFolder:FindFirstChild("One") and inputFolder.One:FindFirstChildOfClass("ProximityPrompt")
-            local slot2Prompt = inputFolder:FindFirstChild("Two") and inputFolder.Two:FindFirstChildOfClass("ProximityPrompt")
-            if #sticksFolder:GetChildren() == 0 and not slot1Prompt and not slot2Prompt then
-                Log("Fuse is officially complete.")
-                break
+    Log("Checking fuse completion...")
+    local confirmed = false
+    while not confirmed do
+        local sticks, inputs = findFuseComponents()
+        if sticks and #sticks:GetChildren() == 0 then
+            local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
+            local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
+            if not a and not b then
+                confirmed = true
             end
         end
         task.wait(0.1)
