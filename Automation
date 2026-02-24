@@ -187,7 +187,7 @@ local function startScreenSolver()
     local screens = workspace:FindFirstChild("Screens", true)
     if not screens then
         ScreensDone = true
-        Log screens found")
+        Log("No screens found")
         return
     end
 
@@ -396,25 +396,33 @@ task.spawn(function()
 
         if not cycleRunning and lastValue > MIN_TIMER and delta >= DROP_THRESHOLD then
             Log(string.format(
-                "Timer trigger: %.1f → %.1f (dropped %d) cycle",
+                "Timer trigger: %.1f → %.1f (dropped %d) — starting cycle",
                 lastValue, newValue, delta
             ))
-            task.spawn(runCycle)lastValue = newValue
+            task.spawn(runCycle)
+        end
+
+        lastValue = newValue
     end
 end)
 
 --------------------------------------------------------------------
 -- FUSE PROMPT WATCHER
--- Trigger 2 override): fuse prompts appear before timer drops by----------------------------------------------------------------
+-- Trigger 2 (override): fuse prompts appear before timer drops by 30
+--------------------------------------------------------------------
 task.spawn(function()
-    Log("Fuse prompt watcher active")do
+    Log("Fuse prompt watcher active")
+
+    while true do
         task.wait(0.1)
 
-        if not cycleRunning then fusePromptsExist() then
-                Log("Fuse prompts detected — override trigger starting cycle")
+        if not cycleRunning then
+            if fusePromptsExist() then
+                Log("Fuse prompts detected — override trigger, starting cycle")
                 task.spawn(runCycle)
 
                 repeat task.wait(0.5) until not cycleRunning
             end
         end
-    en
+    end
+end)
