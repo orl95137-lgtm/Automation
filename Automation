@@ -41,6 +41,29 @@ lp.Idled:Connect(function()
 end)
 
 --------------------------------------------------------------------
+-- TASER LOOP (separate, infinite)
+--------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        local taser = remotes and remotes:FindFirstChild("UseTaser")
+        if taser then taser:FireServer() end
+    end
+end)
+
+--------------------------------------------------------------------
+-- TIMER FINDER
+--------------------------------------------------------------------
+local function findTimerValue()
+    local gameInfo = workspace:FindFirstChild("GameInformation")
+    if gameInfo then
+        return gameInfo:FindFirstChild("Timer")
+    end
+    return nil
+end
+
+--------------------------------------------------------------------
 -- FUSE LOGIC
 --------------------------------------------------------------------
 local function findFuseComponents()
@@ -49,6 +72,13 @@ local function findFuseComponents()
             return obj.Sticks, obj.Input
         end
     end
+end
+
+local function fusePromptsExist()
+    local sticksFolder = select(1, findFuseComponents())
+    if not sticksFolder then return false end
+    local stick = sticksFolder:GetChildren()[1]
+    return stick and stick:FindFirstChildOfClass("ProximityPrompt") ~= nil
 end
 
 local function interact(target)
@@ -93,41 +123,54 @@ local function runFuseSequence()
     end
 
     local root = getRoot()
-    for _, slot in ipairs({"One", "Two"}) do
+
+    local confirmed = false
+    while not confirmed do
         if cycleAborted then return end
 
-        local stick
-        repeat
+        for _, slot in ipairs({"One", "Two"}) do
             if cycleAborted then return end
-            sticksFolder, inputFolder = findFuseComponents()
-            stick = sticksFolder:GetChildren()[1]
-            task.wait(0.1)
-        until stick
 
-        root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
-        task.wait(0.5)
-        if cycleAborted then return end
-        interact(stick)
-        task.wait(1)
+            local stick
+            repeat
+                if cycleAborted then return end
+                sticksFolder, inputFolder = findFuseComponents()
+                stick = sticksFolder:GetChildren()[1]
+                task.wait(0.1)
+            until stick
 
-        if cycleAborted then return end
-        local input = inputFolder:FindFirstChild(slot)
-        root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
-        task.wait(0.5)
-        interact(input)
-    end
+            root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+            task.wait(0.5)
+            if cycleAborted then return end
+            interact(stick)
+            task.wait(1)
 
-    Log("Waiting for fuse completion confirmation")
-    local deadline = tick() + 5
-    while tick() < deadline do
-        if cycleAborted then return end
-        local sticks, inputs = findFuseComponents()
-        if sticks and #sticks:GetChildren() == 0 then
-            local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
-            local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
-            if not a and not b then break end
+            if cycleAborted then return end
+            local input = inputFolder:FindFirstChild(slot)
+            root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
+            task.wait(0.5)
+            interact(input)
         end
-        task.wait(0.1)
+
+        Log("Checking fuse completion...")
+        local deadline = tick() + 5
+        while tick() < deadline do
+            if cycleAborted then return end
+            local sticks, inputs = findFuseComponents()
+            if sticks and #sticks:GetChildren() == 0 then
+                local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
+                local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
+                if not a and not b then
+                    confirmed = true
+                    break
+                end
+            end
+            task.wait(0.1)
+        end
+
+        if not confirmed then
+            Log("Fuse confirmation failed — retrying collection")
+        end
     end
 
     FuseDone = true
@@ -259,17 +302,6 @@ local function waitForFusePrompts()
 
         task.wait(0.1)
     end
-end
-
---------------------------------------------------------------------
--- TIMER FINDER
---------------------------------------------------------------------
-local function findTimerValue()
-    local gameInfo = workspace:FindFirstChild("GameInformation")
-    if gameInfo then
-        return gameInfo:FindFirstChild("Timer")
-    end
-    return nil
 end
 
 --------------------------------------------------------------------
