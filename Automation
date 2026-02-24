@@ -16,8 +16,6 @@ local ScreensDone = false
 local ValvesDone = false
 local FusePromptsSeen = false
 local cycleCount = 0
-local cycleRunning = false
-local cycleAborted = false
 
 local function Log(msg)
     print("[AUTO] " .. msg)
@@ -42,29 +40,6 @@ lp.Idled:Connect(function()
 end)
 
 --------------------------------------------------------------------
--- TASER LOOP (separate, infinite)
---------------------------------------------------------------------
-task.spawn(function()
-    while true do
-        task.wait(0.01)
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local taser = remotes and remotes:FindFirstChild("UseTaser")
-        if taser then taser:FireServer() end
-    end
-end)
-
---------------------------------------------------------------------
--- TIMER FINDER
---------------------------------------------------------------------
-local function findTimerValue()
-    local gameInfo = workspace:FindFirstChild("GameInformation")
-    if gameInfo then
-        return gameInfo:FindFirstChild("Timer")
-    end
-    return nil
-end
-
---------------------------------------------------------------------
 -- FUSE LOGIC
 --------------------------------------------------------------------
 local function findFuseComponents()
@@ -73,13 +48,6 @@ local function findFuseComponents()
             return obj.Sticks, obj.Input
         end
     end
-end
-
-local function fusePromptsExist()
-    local sticksFolder = select(1, findFuseComponents())
-    if not sticksFolder then return false end
-    local stick = sticksFolder:GetChildren()[1]
-    return stick and stick:FindFirstChildOfClass("ProximityPrompt") ~= nil
 end
 
 local function interact(target)
@@ -105,19 +73,21 @@ local function runFuseSequence()
 
     local sticksFolder, inputFolder
     repeat
-        if cycleAborted then return end
         sticksFolder, inputFolder = findFuseComponents()
         task.wait(0.2)
     until sticksFolder and inputFolder
 
     Log("Fuse model detected")
 
-    Log("Waiting for fuse prompts to appear")
+    Log("Running taser until fuse prompts appear")
     while true do
-        if cycleAborted then return end
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        local taser = remotes and remotes:FindFirstChild("UseTaser")
+        if taser then taser:FireServer() end
+
         local stick = sticksFolder:GetChildren()[1]
         if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
-            Log("Fuse prompts detected — proceeding")
+            Log("Fuse prompts detected — stopping taser")
             break
         end
         task.wait(0.1)
@@ -127,14 +97,9 @@ local function runFuseSequence()
 
     local confirmed = false
     while not confirmed do
-        if cycleAborted then return end
-
         for _, slotName in ipairs({"One", "Two"}) do
-            if cycleAborted then return end
-
             local stick
             repeat
-                if cycleAborted then return end
                 sticksFolder, inputFolder = findFuseComponents()
                 stick = sticksFolder:GetChildren()[1]
                 task.wait(0.1)
@@ -146,8 +111,6 @@ local function runFuseSequence()
             interact(stick)
             task.wait(1)
 
-            if cycleAborted then return end
-
             -- DEPOSIT
             local input = inputFolder:FindFirstChild(slotName)
             root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
@@ -155,7 +118,6 @@ local function runFuseSequence()
 
             local start = tick()
             while tick() - start < 3 do
-                if cycleAborted then return end
                 local prompt = input:FindFirstChildOfClass("ProximityPrompt")
                 if not prompt then
                     Log("Deposit accepted for slot " .. slotName)
@@ -169,7 +131,6 @@ local function runFuseSequence()
         Log("Checking fuse completion...")
         local deadline = tick() + 5
         while tick() < deadline do
-            if cycleAborted then return end
             local sticks, inputs = findFuseComponents()
             if sticks and #sticks:GetChildren() == 0 then
                 local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
@@ -207,7 +168,6 @@ local function startScreenSolver()
 
     for _, screen in ipairs(screens:GetChildren()) do
         while task.wait(0.5) do
-            if cycleAborted then ScreensDone = true return end
             if screen.Color and screen.Color.G == 1 then break end
             local click = screen:FindFirstChild("PuzzleClickDetector", true)
             if click then
@@ -224,38 +184,21 @@ end
 --------------------------------------------------------------------
 -- VALVE HUNTER
 --------------------------------------------------------------------
-local RunService = game:GetService("RunService")
-
-local function areAllValvePromptsDone(folder)
-    for _, valve in ipairs(folder:GetChildren()) do
-        local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
-        if prompt and prompt.Enabled then return false end
+local function valvesDone(folder)
+    for _, v in ipairs(folder:GetChildren()) do
+        local p = v:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if p and p.Enabled then return false end
     end
     return true
 end
 
 local function runValveHunter()
     ValvesDone = false
+    Log("Starting valve hunter")
 
-    local character = getChar()
-    local rootPart  = getRoot()
-
-    task.spawn(function()
-        RunService.Stepped:Connect(function()
-            if cycleAborted then return end
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    end)
-
-    Log("Starting valve hunter...")
+    local root = getRoot()
 
     while true do
-        if cycleAborted then return end
-
         local map
         for _, obj in ipairs(workspace:GetChildren()) do
             if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
@@ -263,58 +206,33 @@ local function runValveHunter()
                 break
             end
         end
-
         if not map then
-            Log("No valve puzzle found.")
             ValvesDone = true
             return
         end
 
-        local valvesFolder = map.Puzzles.Valves
-
-        if #valvesFolder:GetChildren() == 0 then
-            Log("No valves present.")
+        local valves = map.Puzzles.Valves
+        if valvesDone(valves) then
             ValvesDone = true
             return
         end
 
-        if areAllValvePromptsDone(valvesFolder) then
-            Log("All valves solved.")
-            ValvesDone = true
-            return
-        end
-
-        for _, valve in ipairs(valvesFolder:GetChildren()) do
-            if cycleAborted then return end
+        for _, valve in ipairs(valves:GetChildren()) do
             local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt and prompt.Enabled then
-                local parent    = prompt.Parent
-                local targetPos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
+                local pos = prompt.Parent:IsA("Model")
+                    and prompt.Parent:GetPivot().Position
+                    or prompt.Parent.Position
 
-                local startTime = tick()
-                local lastFire  = tick()
-
-                while prompt.Enabled and (tick() - startTime) < 6 do
-                    if cycleAborted then return end
-                    rootPart.CFrame = CFrame.lookAt(rootPart.Position, targetPos)
-                    rootPart.CFrame = CFrame.new(targetPos + parent.CFrame.LookVector * 2)
-                    if tick() - lastFire >= 0.1 then
-                        fireproximityprompt(prompt)
-                        lastFire = tick()
-                    end
-                    task.wait()
+                local start = tick()
+                while prompt.Enabled and tick() - start < 6 do
+                    root.CFrame = CFrame.new(pos + prompt.Parent.CFrame.LookVector * 2)
+                    fireproximityprompt(prompt)
+                    task.wait(0.1)
                 end
                 Log("Valve completed: " .. valve.Name)
             end
         end
-
-        if areAllValvePromptsDone(valvesFolder) then
-            Log("Valves solved.")
-            ValvesDone = true
-            return
-        end
-
-        task.wait(0.5)
     end
 end
 
@@ -324,7 +242,6 @@ end
 local function waitForFusePrompts()
     Log("Waiting for fuse prompts")
     while true do
-        if cycleAborted then return end
         local sticks = select(1, findFuseComponents())
         local s = sticks and sticks:GetChildren()[1]
         if s and s:FindFirstChildOfClass("ProximityPrompt") then
@@ -350,104 +267,32 @@ local function rejoin()
 end
 
 --------------------------------------------------------------------
--- SINGLE CYCLE
---------------------------------------------------------------------
-local function runCycle()
-    if cycleRunning then
-        Log("Cycle already running — skipping trigger")
-        return
-    end
-    cycleRunning = true
-    cycleAborted = false
-    cycleCount += 1
-    Log("=== CYCLE " .. cycleCount .. " START ===")
-
-    FuseDone, ScreensDone, ValvesDone = false, false, false
-
-    waitForFusePrompts()
-    task.spawn(startScreenSolver)
-    runFuseSequence()
-    if not cycleAborted then runValveHunter() end
-
-    if cycleAborted then
-        Log("Cycle aborted — timer dropped below 20, resetting")
-        cycleRunning = false
-        return
-    end
-
-    while not (FuseDone and ScreensDone and ValvesDone) do
-        task.wait(0.1)
-    end
-
-    Log("Cycle complete — resetting character")
-    local hum = getChar():FindFirstChildOfClass("Humanoid")
-    if hum then hum.Health = 0 end
-    task.wait(1)
-
-    cycleRunning = false
-
-    if cycleCount >= 60 then
-        rejoin()
-    end
-end
-
---------------------------------------------------------------------
--- TIMER WATCHER
+-- MAIN LOOP
 --------------------------------------------------------------------
 task.spawn(function()
-    Log("Waiting for Timer in GameInformation...")
-    local timerObj
-    repeat
-        timerObj = findTimerValue()
-        task.wait(0.5)
-    until timerObj
-    Log("Timer found: " .. timerObj:GetFullName())
-
-    local lastValue = timerObj.Value
-    local DROP_THRESHOLD = 30
-    local MIN_TIMER = 120
-    local ABORT_THRESHOLD = 20
-
-    Log(string.format("Polling Timer — triggers when Timer > %d and drops by %d", MIN_TIMER, DROP_THRESHOLD))
-
     while true do
-        task.wait(0.1)
-        local newValue = timerObj.Value
-        local delta = lastValue - newValue
+        cycleCount += 1
+        Log("=== CYCLE " .. cycleCount .. " START ===")
 
-        if cycleRunning and not cycleAborted and newValue < ABORT_THRESHOLD then
-            Log("Timer below 20 — aborting cycle and resetting")
-            cycleAborted = true
+        FuseDone, ScreensDone, ValvesDone = false, false, false
+
+        waitForFusePrompts()
+        task.spawn(startScreenSolver)
+        runFuseSequence()
+        runValveHunter()
+
+        while not (FuseDone and ScreensDone and ValvesDone) do
+            task.wait(0.1)
         end
 
-        if not cycleRunning and lastValue > MIN_TIMER and delta >= DROP_THRESHOLD then
-            Log(string.format(
-                "Timer trigger: %.1f → %.1f (dropped %d) — starting cycle",
-                lastValue, newValue, delta
-            ))
-            task.spawn(runCycle)
-        end
+        Log("Cycle complete — resetting character")
+        local hum = getChar():FindFirstChildOfClass("Humanoid")
+        if hum then hum.Health = 0 end
+        task.wait(1)
 
-        lastValue = newValue
-    end
-end)
-
---------------------------------------------------------------------
--- FUSE PROMPT WATCHER
---------------------------------------------------------------------
-task.spawn(function()
-    Log("Fuse prompt watcher active")
-
-    while true do
-        task.wait(0.1)
-
-        if not cycleRunning then
-            if fusePromptsExist() then
-                Log("Fuse prompts detected — override trigger, starting cycle")
-                task.spawn(runCycle)
-
-                repeat task.wait(0.5) until not cycleRunning
-            end
+        if cycleCount >= 60 then
+            rejoin()
+            break
         end
     end
 end)
