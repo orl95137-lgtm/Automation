@@ -321,7 +321,9 @@ end
 -- SINGLE CYCLE
 --------------------------------------------------------------------
 local function resetState()
-    FuseDone, ScreensDone, ValvesDone = false, false, false
+    FuseDone = false
+    ScreensDone = false
+    ValvesDone = false
     FusePromptsSeen = false
     cycleRunning = false
     cycleAborted = false
@@ -392,6 +394,7 @@ task.spawn(function()
         if cycleRunning and not cycleAborted and newValue < ABORT_THRESHOLD then
             Log("Timer below 20 — aborting cycle and resetting")
             cycleAborted = true
+            resetState()
         end
 
         if not cycleRunning and lastValue > MIN_TIMER and delta >= DROP_THRESHOLD then
