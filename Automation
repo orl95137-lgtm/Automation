@@ -42,6 +42,18 @@ lp.Idled:Connect(function()
 end)
 
 --------------------------------------------------------------------
+-- TASER LOOP
+--------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        local taser = remotes and remotes:FindFirstChild("UseTaser")
+        if taser then taser:FireServer() end
+    end
+end)
+
+--------------------------------------------------------------------
 -- FUSE LOGIC
 --------------------------------------------------------------------
 local function findFuseComponents()
@@ -92,15 +104,11 @@ local function runFuseSequence()
 
     Log("Fuse model detected")
 
-    Log("Running taser until fuse prompts appear")
+    Log("Waiting for fuse prompts to appear")
     while not cycleAborted do
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        local taser = remotes and remotes:FindFirstChild("UseTaser")
-        if taser then taser:FireServer() end
-
         local stick = sticksFolder:GetChildren()[1]
         if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
-            Log("Fuse prompts detected — stopping taser")
+            Log("Fuse prompts detected — proceeding")
             break
         end
         task.wait(0.1)
@@ -170,20 +178,38 @@ local function startScreenSolver()
         return
     end
 
-    for _, screen in ipairs(screens:GetChildren()) do
-        while not cycleAborted and task.wait(0.5) do
-            if screen.Color and screen.Color.G == 1 then break end
-            local click = screen:FindFirstChild("PuzzleClickDetector", true)
-            if click then
-                fireclickdetector(click)
-                Log("Clicked screen " .. screen.Name)
-            end
-        end
-        if cycleAborted then return end
+    local screenList = screens:GetChildren()
+    local completed = 0
+    local total = #screenList
+
+    if total == 0 then
+        ScreensDone = true
+        return
     end
 
-    ScreensDone = true
-    Log("Screens solved")
+    for _, screen in ipairs(screenList) do
+        task.spawn(function()
+            while not cycleAborted do
+                if screen.Color and screen.Color.G == 1 then break end
+                local click = screen:FindFirstChild("PuzzleClickDetector", true)
+                if click then
+                    fireclickdetector(click)
+                    Log("Clicked screen " .. screen.Name)
+                end
+                task.wait(0.5)
+            end
+            completed += 1
+        end)
+    end
+
+    while completed < total and not cycleAborted do
+        task.wait(0.1)
+    end
+
+    if not cycleAborted then
+        ScreensDone = true
+        Log("Screens solved")
+    end
 end
 
 --------------------------------------------------------------------
@@ -234,7 +260,7 @@ local function runValveHunter()
                 while prompt.Enabled and tick() - start < 6 and not cycleAborted do
                     root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
                     fireproximityprompt(prompt)
-                    task.wait(0.1)
+                    task.wait(0.01)
                 end
                 if cycleAborted then return end
                 Log("Valve completed: " .. valve.Name)
@@ -267,7 +293,7 @@ local function rejoin()
     Log("Rejoining server")
     lp.OnTeleport:Connect(function()
         loadstring(game:HttpGet(
-            "https://raw.githubusercontent.com/orl95137-lgtm/JustF/main/Goofy"
+            "https://raw.githubusercontent.com/orl95137-lgtm/Automation/refs/heads/main/Automation"
         ))()
     end)
     TeleportService:Teleport(placeId, lp)
