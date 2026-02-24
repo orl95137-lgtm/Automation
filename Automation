@@ -111,12 +111,14 @@ local function runFuseSequence()
         end
 
         root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
-        task.wait(0.5)
+        task.wait(0.6)
         interactWithTarget(stick)
+        task.wait(0.5)
 
         root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
-        task.wait(0.5)
+        task.wait(0.6)
         interactWithTarget(input)
+        task.wait(0.5)
     end
 
     Log("Checking fuse completion...")
@@ -205,13 +207,13 @@ local function runValveHunter()
         for _, valve in ipairs(valves:GetChildren()) do
             local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt and prompt.Enabled then
-                local pos = prompt.Parent:IsA("Model")
-                    and prompt.Parent:GetPivot().Position
-                    or prompt.Parent.Position
+                local parent = prompt.Parent
+                local pos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
+                local targetCFrame = parent:IsA("Model") and parent:GetPivot() or parent.CFrame
 
                 local start = tick()
                 while prompt.Enabled and tick() - start < 6 do
-                    root.CFrame = CFrame.new(pos + prompt.Parent.CFrame.LookVector * 2)
+                    root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
                     fireproximityprompt(prompt)
                     task.wait(0.1)
                 end
