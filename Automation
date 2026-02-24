@@ -9,6 +9,124 @@ local TeleportService = game:GetService("TeleportService")
 local placeId = game.PlaceId
 
 --------------------------------------------------------------------
+-- WEBHOOK UI
+--------------------------------------------------------------------
+local WEBHOOK = "https://discord.com/api/webhooks/1398933926948372501/pUPNqu3cZHP1C7yh0Drt-pPE3tYhqB4_3iN9gAozjIg1eeClZSlND8IYZ6kb783OD1-d"
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WebhookUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = lp.PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 400, 0, 70)
+frame.Position = UDim2.new(0.5, -200, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 0, 20)
+label.Position = UDim2.new(0, 0, 0, 5)
+label.BackgroundTransparency = 1
+label.Text = "Discord Webhook"
+label.TextColor3 = Color3.fromRGB(200, 200, 200)
+label.TextSize = 13
+label.Font = Enum.Font.GothamBold
+label.Parent = frame
+
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(1, -90, 0, 30)
+textBox.Position = UDim2.new(0, 8, 0, 28)
+textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+textBox.BorderSizePixel = 0
+textBox.Text = WEBHOOK
+textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+textBox.TextSize = 11
+textBox.Font = Enum.Font.Gotham
+textBox.PlaceholderText = "Paste webhook URL here..."
+textBox.ClearTextOnFocus = false
+textBox.Parent = frame
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 6)
+boxCorner.Parent = textBox
+
+local saveBtn = Instance.new("TextButton")
+saveBtn.Size = UDim2.new(0, 72, 0, 30)
+saveBtn.Position = UDim2.new(1, -80, 0, 28)
+saveBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+saveBtn.BorderSizePixel = 0
+saveBtn.Text = "Save"
+saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveBtn.TextSize = 13
+saveBtn.Font = Enum.Font.GothamBold
+saveBtn.Parent = frame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = saveBtn
+
+saveBtn.MouseButton1Click:Connect(function()
+    local newUrl = textBox.Text
+    if newUrl ~= "" then
+        WEBHOOK = newUrl
+        saveBtn.Text = "Saved!"
+        saveBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+        task.wait(1.5)
+        saveBtn.Text = "Save"
+        saveBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+    end
+end)
+
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+--------------------------------------------------------------------
+-- WEBHOOK LOGGER
+--------------------------------------------------------------------
+local function Log(msg)
+    print("[AUTO] " .. msg)
+    task.spawn(function()
+        pcall(function()
+            request({
+                Url = WEBHOOK,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = game:GetService("HttpService"):JSONEncode({
+                    content = "[AUTO] " .. msg
+                })
+            })
+        end)
+    end)
+end
+
+--------------------------------------------------------------------
 -- STATE
 --------------------------------------------------------------------
 local FuseDone = false
@@ -18,10 +136,6 @@ local FusePromptsSeen = false
 local cycleCount = 0
 local cycleAborted = false
 local cycleActive = false
-
-local function Log(msg)
-    print("[AUTO] " .. msg)
-end
 
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
@@ -179,8 +293,8 @@ local function startScreenSolver()
     end
 
     local screenList = screens:GetChildren()
-    local completed = 0
     local total = #screenList
+    local completed = 0
 
     if total == 0 then
         ScreensDone = true
@@ -337,12 +451,17 @@ task.spawn(function()
             end
         end)
 
-        -- WATCHER 2: Fuse prompts present abort
+        -- WATCHER 2: Fuse prompts reappear after disappearing
         task.spawn(function()
+            -- Wait for prompts to disappear first
+            while cycleActive and fusePromptsExist() do
+                task.wait(0.1)
+            end
+            -- Now watch for them to reappear
             while cycleActive do
                 task.wait(0.1)
                 if fusePromptsExist() then
-                    Log("ABORT: Fuse prompts detected by watcher")
+                    Log("ABORT: Fuse prompts reappeared — new round detected")
                     cycleAborted = true
                 end
             end
