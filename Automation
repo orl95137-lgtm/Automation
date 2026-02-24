@@ -102,34 +102,34 @@ local function runFuseSequence()
             repeat
                 sticksFolder, inputFolder = findFuseComponents()
                 stick = sticksFolder:GetChildren()[1]
-                task.wait(0.05)
+                task.wait(0.1)
             until stick
 
             -- PICKUP
             root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
-            task.wait(0.1)
+            task.wait(1)
             interact(stick)
-            task.wait(0.1)
+            task.wait(1)
 
             -- DEPOSIT
             local input = inputFolder:FindFirstChild(slotName)
             root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
-            task.wait(0.1)
+            task.wait(1)
 
             local start = tick()
-            while tick() - start < 2 do
+            while tick() - start < 3 do
                 local prompt = input:FindFirstChildOfClass("ProximityPrompt")
                 if not prompt then
                     Log("Deposit accepted for slot " .. slotName)
                     break
                 end
                 fireproximityprompt(prompt)
-                task.wait(0.05)
+                task.wait(1)
             end
         end
 
         Log("Checking fuse completion...")
-        local deadline = tick() + 3
+        local deadline = tick() + 5
         while tick() < deadline do
             local sticks, inputs = findFuseComponents()
             if sticks and #sticks:GetChildren() == 0 then
@@ -140,7 +140,7 @@ local function runFuseSequence()
                     break
                 end
             end
-            task.wait(0.05)
+            task.wait(0.1)
         end
 
         if not confirmed then
@@ -220,13 +220,13 @@ local function runValveHunter()
         for _, valve in ipairs(valves:GetChildren()) do
             local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt and prompt.Enabled then
-                local pos = prompt.Parent:IsA("Model")
-                    and prompt.Parent:GetPivot().Position
-                    or prompt.Parent.Position
+                local parent = prompt.Parent
+                local pos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
+                local targetCFrame = parent:IsA("Model") and parent:GetPivot() or parent.CFrame
 
                 local start = tick()
                 while prompt.Enabled and tick() - start < 6 do
-                    root.CFrame = CFrame.new(pos + prompt.Parent.CFrame.LookVector * 2)
+                    root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
                     fireproximityprompt(prompt)
                     task.wait(0.1)
                 end
