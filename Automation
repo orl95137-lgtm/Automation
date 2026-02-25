@@ -1,4 +1,3 @@
-
 --------------------------------------------------------------------
 -- CORE SERVICES
 --------------------------------------------------------------------
@@ -17,7 +16,7 @@ local WEBHOOK = ""
 
 if isfile(WEBHOOK_FILE) then
     local saved = readfile(WEBHOOK_FILE)
-    if saved and saved ~= "" then
+    if saved and saved \~= "" then
         WEBHOOK = saved
     end
 end
@@ -43,7 +42,7 @@ local function initGemTracker()
 
     gems:GetPropertyChangedSignal("Value"):Connect(function()
         currentGems = gems.Value
-        GemsLabel.Text = "💎 Gems: " .. tostring(currentGems)
+        GemsLabel.Text = "Gems: " .. tostring(currentGems)
     end)
 end
 
@@ -53,7 +52,7 @@ end
 local PlayerGui = lp:WaitForChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AutoWebhookUI"
+ScreenGui.Name = "AutoWebhookSenderUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
@@ -95,7 +94,7 @@ TitleBarFix.BorderSizePixel = 0
 TitleBarFix.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Text = "🔁 Auto Webhook Sender"
+TitleLabel.Text = " Auto Webhook Sender"
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 12, 0, 0)
 TitleLabel.BackgroundTransparency = 1
@@ -106,7 +105,7 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Text = "✕"
+CloseBtn.Text = "x"
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
 CloseBtn.Position = UDim2.new(1, -38, 0, 5)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
@@ -121,7 +120,7 @@ CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseBtn
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Text = "⚪ Status: Starting..."
+StatusLabel.Text = " Status: Starting..."
 StatusLabel.Size = UDim2.new(1, -20, 0, 20)
 StatusLabel.Position = UDim2.new(0, 10, 0, 50)
 StatusLabel.BackgroundTransparency = 1
@@ -132,7 +131,7 @@ StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
 local CycleLabel = Instance.new("TextLabel")
-CycleLabel.Text = "🔁 Current Loop: N/A"
+CycleLabel.Text = " Current Loop: N/A"
 CycleLabel.Size = UDim2.new(1, -20, 0, 20)
 CycleLabel.Position = UDim2.new(0, 10, 0, 75)
 CycleLabel.BackgroundTransparency = 1
@@ -143,7 +142,7 @@ CycleLabel.TextXAlignment = Enum.TextXAlignment.Left
 CycleLabel.Parent = MainFrame
 
 local GemsLabel = Instance.new("TextLabel")
-GemsLabel.Text = "💎 Gems: N/A"
+GemsLabel.Text = " Gems: N/A"
 GemsLabel.Size = UDim2.new(1, -20, 0, 20)
 GemsLabel.Position = UDim2.new(0, 10, 0, 95)
 GemsLabel.BackgroundTransparency = 1
@@ -177,7 +176,7 @@ BoxStroke.Thickness = 1
 BoxStroke.Parent = WebhookBox
 
 local SaveBtn = Instance.new("TextButton")
-SaveBtn.Text = "💾  Save Webhook"
+SaveBtn.Text = "  Save Webhook"
 SaveBtn.Size = UDim2.new(1, -20, 0, 34)
 SaveBtn.Position = UDim2.new(0, 10, 0, 176)
 SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
@@ -195,12 +194,12 @@ SaveCorner.Parent = SaveBtn
 -- UI HELPERS
 --------------------------------------------------------------------
 local function setStatus(text, color)
-    StatusLabel.Text = "● Status: " .. text
+    StatusLabel.Text = " Status: " .. text
     StatusLabel.TextColor3 = color or Color3.fromRGB(170, 170, 200)
 end
 
 local function setCycle(n)
-    CycleLabel.Text = "🔁 Current Loop: " .. tostring(n)
+    CycleLabel.Text = " Current Loop: " .. tostring(n)
 end
 
 SaveBtn.MouseButton1Click:Connect(function()
@@ -211,11 +210,11 @@ SaveBtn.MouseButton1Click:Connect(function()
     end
     WEBHOOK = newUrl
     saveWebhook(newUrl)
-    SaveBtn.Text = "✔  Saved!"
+    SaveBtn.Text = "  Saved!"
     SaveBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
     setStatus("Webhook saved", Color3.fromRGB(80, 220, 120))
     task.wait(1.5)
-    SaveBtn.Text = "💾  Save Webhook"
+    SaveBtn.Text = "  Save Webhook"
     SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
 end)
 
@@ -224,7 +223,7 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------
--- LOGGER
+-- LOGGER & WEBHOOK
 --------------------------------------------------------------------
 local function sendCycleUpdate(cycleNum, reason)
     task.spawn(function()
@@ -235,7 +234,7 @@ local function sendCycleUpdate(cycleNum, reason)
                 Headers = { ["Content-Type"] = "application/json" },
                 Body = HttpService:JSONEncode({
                     content = string.format(
-                        "🔁 **Current loop %d** | %s\n💎 **Gems:** %s",
+                        " **Current loop %d** | %s\n**Gems:** %s",
                         cycleNum,
                         reason,
                         tostring(currentGems)
@@ -260,6 +259,8 @@ local FusePromptsSeen = false
 local cycleCount = 0
 local cycleAborted = false
 local currentCycleId = 0
+local lastResetTime = 0
+local RESET_COOLDOWN = 3
 
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
@@ -300,13 +301,6 @@ local function findFuseComponents()
             return obj.Sticks, obj.Input
         end
     end
-end
-
-local function fusePromptsExist()
-    local sticksFolder = select(1, findFuseComponents())
-    if not sticksFolder then return false end
-    local stick = sticksFolder:GetChildren()[1]
-    return stick and stick:FindFirstChildOfClass("ProximityPrompt") ~= nil
 end
 
 local function interactWithTarget(target, holdTime)
@@ -368,269 +362,195 @@ local function runFuseSequence()
         end
         if cycleAborted then return end
 
-        root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
-        task.wait(0.6)
-        interactWithTarget(stick)
-        task.wait(0.5)
+        root.CFrame = stick.CFrame * CFrame.new(0, 3, 0)
+        task.wait(0.4)
+        interactWithTarget(stick, 0.3)
+        task.wait(1)
 
-        root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
-        task.wait(0.6)
-        interactWithTarget(input)
-        task.wait(0.5)
+        root.CFrame = input.CFrame * CFrame.new(0, 3, 0)
+        task.wait(0.4)
+        interactWithTarget(input, 0.3)
+        task.wait(1.2)
     end
 
-    if cycleAborted then return end
-
-    local confirmed = false
-    while not confirmed and not cycleAborted do
-        local sticks, inputs = findFuseComponents()
-        if sticks and #sticks:GetChildren() == 0 then
-            local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
-            local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
-            if not a and not b then
-                confirmed = true
-            end
-        end
-        task.wait(0.1)
-    end
-    if cycleAborted then return end
-
+    Log("Fuse sequence completed")
     FuseDone = true
-    Log("Fuse completed")
 end
 
 --------------------------------------------------------------------
--- SCREEN SOLVER
+-- SCREENS LOGIC
 --------------------------------------------------------------------
-local function startScreenSolver()
+local function findScreens()
+    local screens = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "Screen" and obj:FindFirstChild("ProximityPrompt") then
+            table.insert(screens, obj)
+        end
+    end
+    return screens
+end
+
+local function runScreensSequence()
     ScreensDone = false
-    Log("Starting screen solver")
+    Log("Starting screens sequence...")
 
-    local screens = workspace:FindFirstChild("Screens", true)
-    if not screens then
-        ScreensDone = true
-        Log("No screens found")
-        return
-    end
+    local screens
+    repeat
+        if cycleAborted then return end
+        screens = findScreens()
+        task.wait(0.3)
+    until #screens > 0
 
-    local screenList = screens:GetChildren()
-    local total = #screenList
-    local completed = 0
-
-    if total == 0 then
-        ScreensDone = true
-        return
-    end
-
-    for _, screen in ipairs(screenList) do
-        task.spawn(function()
-            while not cycleAborted do
-                if screen.Color and screen.Color.G == 1 then break end
-                local click = screen:FindFirstChild("PuzzleClickDetector", true)
-                if click then
-                    fireclickdetector(click)
-                    Log("Clicked screen " .. screen.Name)
-                end
-                task.wait(0.5)
-            end
-            completed += 1
-        end)
-    end
-
-    while completed < total and not cycleAborted do
-        task.wait(0.1)
-    end
-
-    if not cycleAborted then
-        ScreensDone = true
-        Log("Screens solved")
-    end
-end
-
---------------------------------------------------------------------
--- VALVE HUNTER
---------------------------------------------------------------------
-local function valvesDone(folder)
-    for _, v in ipairs(folder:GetChildren()) do
-        local p = v:FindFirstChildWhichIsA("ProximityPrompt", true)
-        if p and p.Enabled then return false end
-    end
-    return true
-end
-
-local function runValveHunter()
-    ValvesDone = false
-    Log("Starting valve hunter")
+    Log("Found " .. #screens .. " screens")
 
     local root = getRoot()
 
-    while not cycleAborted do
-        local map
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
-                map = obj
-                break
-            end
-        end
-        if not map then
-            ValvesDone = true
-            return
-        end
+    for _, screen in ipairs(screens) do
+        if cycleAborted then return end
+        root.CFrame = screen.CFrame * CFrame.new(0, 4, 0)
+        task.wait(0.5)
+        interactWithTarget(screen, 0.4)
+        task.wait(1.1)
+    end
 
-        local valves = map.Puzzles.Valves
-        if valvesDone(valves) then
-            ValvesDone = true
-            return
-        end
+    Log("Screens sequence completed")
+    ScreensDone = true
+end
 
-        for _, valve in ipairs(valves:GetChildren()) do
-            if cycleAborted then return end
-            local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt and prompt.Enabled then
-                local parent = prompt.Parent
-                local pos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
-                local targetCFrame = parent:IsA("Model") and parent:GetPivot() or parent.CFrame
-
-                local start = tick()
-                while prompt.Enabled and tick() - start < 6 and not cycleAborted do
-                    root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
-                    fireproximityprompt(prompt)
-                    task.wait(0.01)
-                end
-                if cycleAborted then return end
-                Log("Valve completed: " .. valve.Name)
-            end
+--------------------------------------------------------------------
+-- VALVES LOGIC
+--------------------------------------------------------------------
+local function findValves()
+    local valves = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "Valve" and obj:FindFirstChild("ProximityPrompt") then
+            table.insert(valves, obj)
         end
+    end
+    return valves
+end
+
+local function runValvesSequence()
+    ValvesDone = false
+    Log("Starting valves sequence...")
+
+    local valves
+    repeat
+        if cycleAborted then return end
+        valves = findValves()
+        task.wait(0.3)
+    until #valves > 0
+
+    Log("Found " .. #valves .. " valves")
+
+    local root = getRoot()
+
+    for _, valve in ipairs(valves) do
+        if cycleAborted then return end
+        root.CFrame = valve.CFrame * CFrame.new(0, 3, 0)
+        task.wait(0.5)
+        interactWithTarget(valve, 2.0)
+        task.wait(0.8)
+    end
+
+    Log("Valves sequence completed")
+    ValvesDone = true
+end
+
+--------------------------------------------------------------------
+-- RESET FUNCTION (with cycle 5 auto-rejoin for testing)
+--------------------------------------------------------------------
+local function resetCycle(reason)
+    local now = tick()
+    if now - lastResetTime < RESET_COOLDOWN then
+        Log("Reset skipped (cooldown) — reason: " .. reason)
+        return
+    end
+
+    currentCycleId = currentCycleId + 1
+    lastResetTime = now
+
+    cycleCount = cycleCount + 1
+    setCycle(cycleCount)
+
+    -- Auto-rejoin at cycle 5 (change back to 60 when tested)
+    if cycleCount >= 5 then
+        Log("Cycle " .. cycleCount .. " reached → rejoining server")
+        sendCycleUpdate(cycleCount, "Cycle 5 limit reached - auto rejoin (test)")
+        task.wait(1.5)
+        TeleportService:Teleport(placeId, lp)
+        return  -- Stop here; teleport starts
+    end
+
+    -- Clear flags immediately
+    FuseDone = false
+    ScreensDone = false
+    ValvesDone = false
+    FusePromptsSeen = false
+    cycleAborted = false
+
+    Log("Resetting cycle #" .. cycleCount .. " (" .. reason .. ")")
+    sendCycleUpdate(cycleCount, reason)
+
+    task.wait(0.8)
+
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if remotes and remotes:FindFirstChild("Rebirth") then
+        remotes.Rebirth:FireServer()
+        Log("Fired Rebirth remote")
+    else
+        Log("No Rebirth remote found")
     end
 end
 
 --------------------------------------------------------------------
--- WAIT FOR FUSE PROMPTS
---------------------------------------------------------------------
-local function waitForFusePrompts()
-    Log("Waiting for fuse prompts")
-    while not cycleAborted do
-        local sticks = select(1, findFuseComponents())
-        local s = sticks and sticks:GetChildren()[1]
-        if s and s:FindFirstChildOfClass("ProximityPrompt") then
-            FusePromptsSeen = true
-            Log("Fuse prompts detected")
-            return
-        end
-        task.wait(0.1)
-    end
-end
-
---------------------------------------------------------------------
--- AUTO REJOIN
---------------------------------------------------------------------
-local function rejoin()
-    Log("Rejoining server")
-    lp.OnTeleport:Connect(function()
-        loadstring(game:HttpGet(
-            "https://raw.githubusercontent.com/orl95137-lgtm/Automation/refs/heads/main/Automation"
-        ))()
-    end)
-    TeleportService:Teleport(placeId, lp)
-end
-
---------------------------------------------------------------------
--- TIMER FINDER
---------------------------------------------------------------------
-local function findTimerValue()
-    local gameInfo = workspace:FindFirstChild("GameInformation")
-    if gameInfo then
-        return gameInfo:FindFirstChild("Timer")
-    end
-    return nil
-end
-
---------------------------------------------------------------------
--- INIT GEM TRACKER
---------------------------------------------------------------------
-task.spawn(initGemTracker)
-
---------------------------------------------------------------------
--- MAIN LOOP
+-- MAIN CYCLE MANAGER
 --------------------------------------------------------------------
 task.spawn(function()
+    initGemTracker()
+
     while true do
-        cycleCount += 1
-        cycleAborted = false
-        FuseDone, ScreensDone, ValvesDone, FusePromptsSeen = false, false, false, false
-
-        currentCycleId += 1
-        local myCycleId = currentCycleId
-
-        setCycle(cycleCount)
-        setStatus("Running cycle " .. cycleCount, Color3.fromRGB(80, 180, 255))
-        sendCycleUpdate(cycleCount, "Cycle started")
-        Log("=== CYCLE " .. cycleCount .. " START ===")
-
-        task.spawn(function()
-            local timerObj = findTimerValue()
-            if not timerObj then return end
-            local lastValue = timerObj.Value
-            while myCycleId == currentCycleId do
-                task.wait(0.1)
-                if myCycleId ~= currentCycleId then return end
-                local newValue = timerObj.Value
-                if lastValue <= 120 and newValue > 120 then
-                    Log("ABORT: Timer jumped above 120 — new round detected")
-                    cycleAborted = true
-                end
-                lastValue = newValue
-            end
-        end)
-
-        task.spawn(function()
-            while myCycleId == currentCycleId and fusePromptsExist() do
-                task.wait(0.1)
-            end
-            while myCycleId == currentCycleId do
-                task.wait(0.1)
-                if myCycleId ~= currentCycleId then return end
-                if fusePromptsExist() then
-                    Log("ABORT: Fuse prompts reappeared — new round detected")
-                    cycleAborted = true
-                end
-            end
-        end)
-
-        waitForFusePrompts()
-        if not cycleAborted then task.spawn(startScreenSolver) end
-        if not cycleAborted then runFuseSequence() end
-        if not cycleAborted then runValveHunter() end
-
-        if not cycleAborted then
-            while not (FuseDone and ScreensDone and ValvesDone) and not cycleAborted do
-                task.wait(0.1)
-            end
-        end
-
-        currentCycleId += 1
-
         if cycleAborted then
-            setStatus("Aborted — restarting", Color3.fromRGB(220, 120, 60))
-            sendCycleUpdate(cycleCount, "Cycle aborted — restarting")
-            Log("Cycle aborted — restarting")
-            task.wait(0.5)
+            task.wait(1)
             continue
         end
 
-        setStatus("Cycle " .. cycleCount .. " complete ✔", Color3.fromRGB(80, 220, 120))
-        sendCycleUpdate(cycleCount, "Cycle complete — resetting character")
-        Log("Cycle complete — resetting character")
+        currentCycleId = currentCycleId + 1
+        local activeCycle = currentCycleId
 
-        local hum = getChar():FindFirstChildOfClass("Humanoid")
-        if hum then hum.Health = 0 end
-        task.wait(1)
+        Log("Starting cycle #" .. (cycleCount + 1) .. " (ID " .. activeCycle .. ")")
 
-        if cycleCount >= 60 then
-            setStatus("Rejoining...", Color3.fromRGB(220, 180, 60))
-            sendCycleUpdate(cycleCount, "Reached 60 cycles — rejoining server")
-            rejoin()
-            break
+        FuseDone = false
+        ScreensDone = false
+        ValvesDone = false
+        FusePromptsSeen = false
+
+        setStatus("Running cycle...", Color3.fromRGB(80, 220, 120))
+
+        task.spawn(runFuseSequence)
+        task.spawn(runScreensSequence)
+        task.spawn(runValvesSequence)
+
+        local start = tick()
+        local TIMEOUT = 600
+
+        local completed = false
+
+        while not cycleAborted and not completed do
+            if FuseDone and ScreensDone and ValvesDone then
+                resetCycle("All tasks completed")
+                completed = true
+            elseif tick() - start > TIMEOUT then
+                resetCycle("Cycle timeout")
+                completed = true
+            end
+
+            task.wait(0.25)
         end
+
+        task.wait(1.5)
     end
 end)
+
+setStatus("Initialized — waiting for tasks", Color3.fromRGB(200, 200, 100))
+Log("Script loaded - auto-rejoin set to cycle 5 for testing")
