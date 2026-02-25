@@ -9,35 +9,10 @@ local HttpService = game:GetService("HttpService")
 local placeId = game.PlaceId
 
 --------------------------------------------------------------------
--- DELTA COMPATIBILITY FIX (very important for you)
---------------------------------------------------------------------
-local http_request = http_request or request or error("No HTTP function found - update Delta")
-local request = http_request  -- alias so the rest of the script works
-
--- Safe fallbacks for file functions (Delta can be flaky)
-local function safe_isfile(path)
-    local success = pcall(function() readfile(path) end)
-    return success
-end
-
-local function safe_readfile(path)
-    local success, result = pcall(function() return readfile(path) end)
-    return success and result or ""
-end
-
-local function safe_writefile(path, data)
-    pcall(function() writefile(path, data) end)
-end
-
-local isfile   = isfile or safe_isfile
-local readfile = readfile or safe_readfile
-local writefile = writefile or safe_writefile
-
---------------------------------------------------------------------
 -- WEBHOOK PERSISTENCE
 --------------------------------------------------------------------
 local WEBHOOK_FILE = "webhook.txt"
-local WEBHOOK = "YOUR_WEBHOOK_HERE_IF_FILE_FAILS"  -- ← paste your webhook here as backup
+local WEBHOOK = ""
 
 if isfile(WEBHOOK_FILE) then
     local saved = readfile(WEBHOOK_FILE)
@@ -47,7 +22,9 @@ if isfile(WEBHOOK_FILE) then
 end
 
 local function saveWebhook(url)
-    safe_writefile(WEBHOOK_FILE, url)
+    pcall(function()
+        writefile(WEBHOOK_FILE, url)
+    end)
 end
 
 --------------------------------------------------------------------
@@ -70,7 +47,7 @@ local function initGemTracker()
 end
 
 --------------------------------------------------------------------
--- STYLED UI (unchanged)
+-- STYLED UI
 --------------------------------------------------------------------
 local PlayerGui = lp:WaitForChild("PlayerGui")
 
@@ -246,12 +223,12 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------
--- LOGGER (using http_request for Delta)
+-- LOGGER
 --------------------------------------------------------------------
 local function sendCycleUpdate(cycleNum, reason)
     task.spawn(function()
         pcall(function()
-            http_request({
+            request({
                 Url = WEBHOOK,
                 Method = "POST",
                 Headers = { ["Content-Type"] = "application/json" },
@@ -273,7 +250,7 @@ local function Log(msg)
 end
 
 --------------------------------------------------------------------
--- STATE & OPTIMIZED FUSE SCAN
+-- STATE
 --------------------------------------------------------------------
 local FuseDone = false
 local ScreensDone = false
@@ -333,7 +310,7 @@ end)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
-        task.wait(0.35)
+        task.wait(0.35)  -- increased from 0.1 to prevent crash
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         local taser = remotes and remotes:FindFirstChild("UseTaser")
         if taser then
@@ -543,7 +520,7 @@ local function runValveHunter()
                 while prompt.Enabled and tick() - start < 6 and not cycleAborted do
                     root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
                     pcall(fireproximityprompt, prompt)
-                    task.wait(0.15)
+                    task.wait(0.15)  -- reduced spam from 0.01
                 end
                 if cycleAborted then return end
                 Log("Valve completed: " .. valve.Name)
