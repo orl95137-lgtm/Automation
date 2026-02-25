@@ -1,10 +1,10 @@
-
 --------------------------------------------------------------------
 -- CORE SERVICES
 --------------------------------------------------------------------
 local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local placeId = game.PlaceId
 
@@ -13,9 +13,10 @@ local placeId = game.PlaceId
 --------------------------------------------------------------------
 local WEBHOOK_FILE = "webhook.txt"
 local WEBHOOK = ""
+
 if isfile(WEBHOOK_FILE) then
     local saved = readfile(WEBHOOK_FILE)
-    if saved and saved ~= "" then
+    if saved and saved \~= "" then
         WEBHOOK = saved
     end
 end
@@ -30,7 +31,6 @@ end
 -- GEM TRACKING
 --------------------------------------------------------------------
 local currentGems = "N/A"
-local GemsLabel
 
 local function initGemTracker()
     local data = lp:WaitForChild("Data", 10)
@@ -39,11 +39,10 @@ local function initGemTracker()
     if not gems then return end
 
     currentGems = gems.Value
-    GemsLabel.Text = "Gems: " .. tostring(currentGems)
 
     gems:GetPropertyChangedSignal("Value"):Connect(function()
         currentGems = gems.Value
-        GemsLabel.Text = "Gems: " .. tostring(currentGems)
+        GemsLabel.Text = "💎 Gems: " .. tostring(currentGems)
     end)
 end
 
@@ -55,61 +54,168 @@ local PlayerGui = lp:WaitForChild("PlayerGui")
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AutoWebhookUI"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 360, 0, 230)
 MainFrame.Position = UDim2.new(0.5, -180, 0.5, -115)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
-local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0,10) Corner.Parent = MainFrame
-local Stroke = Instance.new("UIStroke") Stroke.Color = Color3.fromRGB(90,90,200) Stroke.Thickness = 1.5 Stroke.Parent = MainFrame
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = MainFrame
 
-local TitleBar = Instance.new("Frame") TitleBar.Size = UDim2.new(1,0,0,40) TitleBar.BackgroundColor3 = Color3.fromRGB(26,26,36) TitleBar.Parent = MainFrame
-local TitleBarCorner = Instance.new("UICorner") TitleBarCorner.CornerRadius = UDim.new(0,10) TitleBarCorner.Parent = TitleBar
-local TitleLabel = Instance.new("TextLabel") TitleLabel.Text = " Auto Webhook Sender" TitleLabel.Size = UDim2.new(1,-50,1,0) TitleLabel.Position = UDim2.new(0,12,0,0) TitleLabel.BackgroundTransparency = 1 TitleLabel.TextColor3 = Color3.fromRGB(220,220,255) TitleLabel.TextSize = 15 TitleLabel.Font = Enum.Font.GothamBold TitleLabel.TextXAlignment = Enum.TextXAlignment.Left TitleLabel.Parent = TitleBar
-local CloseBtn = Instance.new("TextButton") CloseBtn.Text = "x" CloseBtn.Size = UDim2.new(0,30,0,30) CloseBtn.Position = UDim2.new(1,-38,0,5) CloseBtn.BackgroundColor3 = Color3.fromRGB(200,60,60) CloseBtn.TextColor3 = Color3.fromRGB(255,255,255) CloseBtn.TextSize = 14 CloseBtn.Font = Enum.Font.GothamBold CloseBtn.Parent = TitleBar
-local CloseCorner = Instance.new("UICorner") CloseCorner.CornerRadius = UDim.new(0,6) CloseCorner.Parent = CloseBtn
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = Color3.fromRGB(90, 90, 200)
+Stroke.Thickness = 1.5
+Stroke.Parent = MainFrame
 
-local StatusLabel = Instance.new("TextLabel") StatusLabel.Size = UDim2.new(1,-20,0,20) StatusLabel.Position = UDim2.new(0,10,0,50) StatusLabel.BackgroundTransparency = 1 StatusLabel.TextColor3 = Color3.fromRGB(170,170,200) StatusLabel.TextSize = 13 StatusLabel.Font = Enum.Font.Gotham StatusLabel.TextXAlignment = Enum.TextXAlignment.Left StatusLabel.Text = " Status: Starting..." StatusLabel.Parent = MainFrame
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
 
-local CycleLabel = Instance.new("TextLabel") CycleLabel.Size = UDim2.new(1,-20,0,20) CycleLabel.Position = UDim2.new(0,10,0,75) CycleLabel.BackgroundTransparency = 1 CycleLabel.TextColor3 = Color3.fromRGB(170,170,200) CycleLabel.TextSize = 13 CycleLabel.Font = Enum.Font.Gotham CycleLabel.TextXAlignment = Enum.TextXAlignment.Left CycleLabel.Text = " Current Loop: N/A" CycleLabel.Parent = MainFrame
+local TitleBarCorner = Instance.new("UICorner")
+TitleBarCorner.CornerRadius = UDim.new(0, 10)
+TitleBarCorner.Parent = TitleBar
 
-GemsLabel = Instance.new("TextLabel") GemsLabel.Size = UDim2.new(1,-20,0,20) GemsLabel.Position = UDim2.new(0,10,0,95) GemsLabel.BackgroundTransparency = 1 GemsLabel.TextColor3 = Color3.fromRGB(170,170,200) GemsLabel.TextSize = 13 GemsLabel.Font = Enum.Font.Gotham GemsLabel.TextXAlignment = Enum.TextXAlignment.Left GemsLabel.Text = " Gems: N/A" GemsLabel.Parent = MainFrame
+local TitleBarFix = Instance.new("Frame")
+TitleBarFix.Size = UDim2.new(1, 0, 0.5, 0)
+TitleBarFix.Position = UDim2.new(0, 0, 0.5, 0)
+TitleBarFix.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+TitleBarFix.BorderSizePixel = 0
+TitleBarFix.Parent = TitleBar
 
-local WebhookBox = Instance.new("TextBox") WebhookBox.PlaceholderText = "Paste webhook URL here..." WebhookBox.Text = WEBHOOK WebhookBox.Size = UDim2.new(1,-20,0,36) WebhookBox.Position = UDim2.new(0,10,0,128) WebhookBox.BackgroundColor3 = Color3.fromRGB(30,30,42) WebhookBox.TextColor3 = Color3.fromRGB(220,220,255) WebhookBox.TextSize = 12 WebhookBox.Font = Enum.Font.Gotham WebhookBox.Parent = MainFrame
-local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0,7) BoxCorner.Parent = WebhookBox
-local BoxStroke = Instance.new("UIStroke") BoxStroke.Color = Color3.fromRGB(70,70,160) BoxStroke.Thickness = 1 BoxStroke.Parent = WebhookBox
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Text = "🔁 Auto Webhook Sender"
+TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Color3.fromRGB(220, 220, 255)
+TitleLabel.TextSize = 15
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
 
-local SaveBtn = Instance.new("TextButton") SaveBtn.Text = " Save Webhook" SaveBtn.Size = UDim2.new(1,-20,0,34) SaveBtn.Position = UDim2.new(0,10,0,176) SaveBtn.BackgroundColor3 = Color3.fromRGB(70,70,200) SaveBtn.TextColor3 = Color3.fromRGB(255,255,255) SaveBtn.TextSize = 13 SaveBtn.Font = Enum.Font.GothamBold SaveBtn.Parent = MainFrame
-local SaveCorner = Instance.new("UICorner") SaveCorner.CornerRadius = UDim.new(0,7) SaveCorner.Parent = SaveBtn
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Text = "✕"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -38, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 14
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Text = "⚪ Status: Starting..."
+StatusLabel.Size = UDim2.new(1, -20, 0, 20)
+StatusLabel.Position = UDim2.new(0, 10, 0, 50)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 200)
+StatusLabel.TextSize = 13
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
+
+local CycleLabel = Instance.new("TextLabel")
+CycleLabel.Text = "🔁 Current Loop: N/A"
+CycleLabel.Size = UDim2.new(1, -20, 0, 20)
+CycleLabel.Position = UDim2.new(0, 10, 0, 75)
+CycleLabel.BackgroundTransparency = 1
+CycleLabel.TextColor3 = Color3.fromRGB(170, 170, 200)
+CycleLabel.TextSize = 13
+CycleLabel.Font = Enum.Font.Gotham
+CycleLabel.TextXAlignment = Enum.TextXAlignment.Left
+CycleLabel.Parent = MainFrame
+
+local GemsLabel = Instance.new("TextLabel")
+GemsLabel.Text = "💎 Gems: N/A"
+GemsLabel.Size = UDim2.new(1, -20, 0, 20)
+GemsLabel.Position = UDim2.new(0, 10, 0, 95)
+GemsLabel.BackgroundTransparency = 1
+GemsLabel.TextColor3 = Color3.fromRGB(170, 170, 200)
+GemsLabel.TextSize = 13
+GemsLabel.Font = Enum.Font.Gotham
+GemsLabel.TextXAlignment = Enum.TextXAlignment.Left
+GemsLabel.Parent = MainFrame
+
+local WebhookBox = Instance.new("TextBox")
+WebhookBox.PlaceholderText = "Paste webhook URL here..."
+WebhookBox.Text = WEBHOOK
+WebhookBox.Size = UDim2.new(1, -20, 0, 36)
+WebhookBox.Position = UDim2.new(0, 10, 0, 128)
+WebhookBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+WebhookBox.TextColor3 = Color3.fromRGB(220, 220, 255)
+WebhookBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 130)
+WebhookBox.TextSize = 12
+WebhookBox.Font = Enum.Font.Gotham
+WebhookBox.ClearTextOnFocus = false
+WebhookBox.BorderSizePixel = 0
+WebhookBox.Parent = MainFrame
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 7)
+BoxCorner.Parent = WebhookBox
+
+local BoxStroke = Instance.new("UIStroke")
+BoxStroke.Color = Color3.fromRGB(70, 70, 160)
+BoxStroke.Thickness = 1
+BoxStroke.Parent = WebhookBox
+
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Text = "💾  Save Webhook"
+SaveBtn.Size = UDim2.new(1, -20, 0, 34)
+SaveBtn.Position = UDim2.new(0, 10, 0, 176)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
+SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveBtn.TextSize = 13
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.BorderSizePixel = 0
+SaveBtn.Parent = MainFrame
+
+local SaveCorner = Instance.new("UICorner")
+SaveCorner.CornerRadius = UDim.new(0, 7)
+SaveCorner.Parent = SaveBtn
 
 --------------------------------------------------------------------
 -- UI HELPERS
 --------------------------------------------------------------------
 local function setStatus(text, color)
-    StatusLabel.Text = " Status: " .. text
-    StatusLabel.TextColor3 = color or Color3.fromRGB(170,170,200)
+    StatusLabel.Text = "● Status: " .. text
+    StatusLabel.TextColor3 = color or Color3.fromRGB(170, 170, 200)
 end
 
 local function setCycle(n)
-    CycleLabel.Text = " Current Loop: " .. tostring(n)
+    CycleLabel.Text = "🔁 Current Loop: " .. tostring(n)
 end
 
 SaveBtn.MouseButton1Click:Connect(function()
     local newUrl = WebhookBox.Text
     if newUrl == "" or not newUrl:match("^https://") then
-        setStatus("Invalid URL!", Color3.fromRGB(220,80,80))
+        setStatus("Invalid URL!", Color3.fromRGB(220, 80, 80))
         return
     end
     WEBHOOK = newUrl
     saveWebhook(newUrl)
-    setStatus("Saved!", Color3.fromRGB(80,220,120))
-    task.wait(1)
-    setStatus("Ready")
+    SaveBtn.Text = "✔  Saved!"
+    SaveBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+    setStatus("Webhook saved", Color3.fromRGB(80, 220, 120))
+    task.wait(1.5)
+    SaveBtn.Text = "💾  Save Webhook"
+    SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
@@ -120,42 +226,59 @@ end)
 -- LOGGER
 --------------------------------------------------------------------
 local function sendCycleUpdate(cycleNum, reason)
-    if WEBHOOK == "" then return end
     task.spawn(function()
         pcall(function()
             request({
                 Url = WEBHOOK,
                 Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
+                Headers = { ["Content-Type"] = "application/json" },
                 Body = HttpService:JSONEncode({
-                    content = string.format("**Loop %d** | %s\n**Gems:** %s", cycleNum, reason, tostring(currentGems))
+                    content = string.format(
+                        "🔁 **Current loop %d** | %s\n💎 **Gems:** %s",
+                        cycleNum,
+                        reason,
+                        tostring(currentGems)
+                    )
                 })
             })
         end)
     end)
 end
 
+local function Log(msg)
+    print("[AUTO] " .. msg)
+end
+
 --------------------------------------------------------------------
--- STATE & OPTIMIZED FUSE SCAN
+-- STATE
 --------------------------------------------------------------------
 local FuseDone = false
+local ScreensDone = false
+local ValvesDone = false
+local FusePromptsSeen = false
 local cycleCount = 0
+local cycleAborted = false
+local currentCycleId = 0
+
 local lastScanTime = 0
-local SCAN_COOLDOWN = 1
-local cachedSticks, cachedInputs
+local SCAN_COOLDOWN = 1.2
+local cachedSticks = nil
+local cachedInputs = nil
 
 local function findFuseComponents()
     local now = tick()
     if now - lastScanTime < SCAN_COOLDOWN and cachedSticks and cachedInputs then
         return cachedSticks, cachedInputs
     end
+
     lastScanTime = now
-    cachedSticks, cachedInputs = nil, nil
+    cachedSticks = nil
+    cachedInputs = nil
 
     local count = 0
     for _, obj in ipairs(workspace:GetDescendants()) do
         count = count + 1
-        if count > 500 then break end
+        if count > 600 then break end
         if obj.Name == "Fuse" and obj:FindFirstChild("Sticks") and obj:FindFirstChild("Input") then
             cachedSticks = obj.Sticks
             cachedInputs = obj.Input
@@ -164,73 +287,375 @@ local function findFuseComponents()
     end
 end
 
-local function interactWithTarget(target, holdTime)
-    if not target then return end
-    local prompt = target:FindFirstChildOfClass("ProximityPrompt")
-    if prompt then
-        fireproximityprompt(prompt)
-        if holdTime then task.wait(holdTime) end
-    end
+local function getChar()
+    return lp.Character or lp.CharacterAdded:Wait()
 end
 
-local function runFuseSequence()
-    local sticks, inputs = findFuseComponents()
-    if not sticks or not inputs then return end
-
-    local stick = sticks:GetChildren()[1]
-    if stick then
-        interactWithTarget(stick, 0.5)
-    end
-
-    for _, slot in {"One", "Two"} do
-        local input = inputs:FindFirstChild(slot)
-        if input then
-            interactWithTarget(input, 0.5)
-        end
-    end
-
-    FuseDone = true
+local function getRoot()
+    return getChar():WaitForChild("HumanoidRootPart")
 end
 
 --------------------------------------------------------------------
 -- ANTI AFK
 --------------------------------------------------------------------
+local VirtualUser = game:GetService("VirtualUser")
 lp.Idled:Connect(function()
-    game:GetService("VirtualUser"):Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     task.wait(0.1)
-    game:GetService("VirtualUser"):Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end)
 
 --------------------------------------------------------------------
--- TASER LOOP
+-- TASER LOOP (FIXED DELAY)
 --------------------------------------------------------------------
 task.spawn(function()
     while true do
-        task.wait(0.3)
+        task.wait(0.35)  -- increased from 0.1 to prevent crash
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        if remotes then
-            local taser = remotes:FindFirstChild("UseTaser")
-            if taser then
-                pcall(taser.FireServer, taser)
-            end
+        local taser = remotes and remotes:FindFirstChild("UseTaser")
+        if taser then
+            pcall(function()
+                taser:FireServer()
+            end)
         end
     end
 end)
 
 --------------------------------------------------------------------
--- MAIN CYCLE LOOP
+-- FUSE LOGIC
+--------------------------------------------------------------------
+local function fusePromptsExist()
+    local sticksFolder = select(1, findFuseComponents())
+    if not sticksFolder then return false end
+    local stick = sticksFolder:GetChildren()[1]
+    return stick and stick:FindFirstChildOfClass("ProximityPrompt") \~= nil
+end
+
+local function interactWithTarget(target, holdTime)
+    if not target then return false end
+    local prompt = target:FindFirstChildOfClass("ProximityPrompt")
+    if not prompt then
+        local count = 0
+        for _, v in ipairs(workspace:GetDescendants()) do
+            count = count + 1
+            if count > 300 then break end
+            if v:IsA("ProximityPrompt") and (v.Parent.Position - target.Position).Magnitude < 10 then
+                prompt = v
+                break
+            end
+        end
+    end
+    if prompt then
+        pcall(fireproximityprompt, prompt)
+        Log("Interacted with " .. target.Name)
+        if holdTime then task.wait(holdTime) end
+        return true
+    end
+    return false
+end
+
+local function runFuseSequence()
+    FuseDone = false
+    Log("Waiting for fuse model...")
+
+    local sticksFolder, inputFolder
+    repeat
+        if cycleAborted then return end
+        sticksFolder, inputFolder = findFuseComponents()
+        task.wait(0.2)
+    until sticksFolder and inputFolder
+
+    Log("Fuse model detected")
+
+    while not cycleAborted do
+        local stick = sticksFolder:GetChildren()[1]
+        if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
+            Log("Fuse prompts detected — proceeding")
+            break
+        end
+        task.wait(0.1)
+    end
+    if cycleAborted then return end
+
+    local root = getRoot()
+
+    for _, slotName in ipairs({"One", "Two"}) do
+        if cycleAborted then return end
+
+        sticksFolder, inputFolder = findFuseComponents()
+        local stick = sticksFolder:GetChildren()[1]
+        local input = inputFolder:FindFirstChild(slotName)
+
+        while not stick and not cycleAborted do
+            sticksFolder, inputFolder = findFuseComponents()
+            stick = sticksFolder:GetChildren()[1]
+            task.wait(0.1)
+        end
+        if cycleAborted then return end
+
+        root.CFrame = stick.CFrame * CFrame.new(0, 2, 0)
+        task.wait(0.6)
+        interactWithTarget(stick)
+        task.wait(0.5)
+
+        root.CFrame = input.CFrame * CFrame.new(0, 2, 0)
+        task.wait(0.6)
+        interactWithTarget(input)
+        task.wait(0.5)
+    end
+
+    if cycleAborted then return end
+
+    local confirmed = false
+    while not confirmed and not cycleAborted do
+        local sticks, inputs = findFuseComponents()
+        if sticks and #sticks:GetChildren() == 0 then
+            local a = inputs.One:FindFirstChildOfClass("ProximityPrompt")
+            local b = inputs.Two:FindFirstChildOfClass("ProximityPrompt")
+            if not a and not b then
+                confirmed = true
+            end
+        end
+        task.wait(0.1)
+    end
+    if cycleAborted then return end
+
+    FuseDone = true
+    Log("Fuse completed")
+end
+
+--------------------------------------------------------------------
+-- SCREEN SOLVER
+--------------------------------------------------------------------
+local function startScreenSolver()
+    ScreensDone = false
+    Log("Starting screen solver")
+
+    local screens = workspace:FindFirstChild("Screens", true)
+    if not screens then
+        ScreensDone = true
+        Log("No screens found")
+        return
+    end
+
+    local screenList = screens:GetChildren()
+    local total = #screenList
+    local completed = 0
+
+    if total == 0 then
+        ScreensDone = true
+        return
+    end
+
+    for _, screen in ipairs(screenList) do
+        task.spawn(function()
+            while not cycleAborted do
+                if screen.Color and screen.Color.G == 1 then break end
+                local click = screen:FindFirstChild("PuzzleClickDetector", true)
+                if click then
+                    pcall(fireclickdetector, click)
+                    Log("Clicked screen " .. screen.Name)
+                end
+                task.wait(0.5)
+            end
+            completed += 1
+        end)
+    end
+
+    while completed < total and not cycleAborted do
+        task.wait(0.1)
+    end
+
+    if not cycleAborted then
+        ScreensDone = true
+        Log("Screens solved")
+    end
+end
+
+--------------------------------------------------------------------
+-- VALVE HUNTER
+--------------------------------------------------------------------
+local function valvesDone(folder)
+    for _, v in ipairs(folder:GetChildren()) do
+        local p = v:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if p and p.Enabled then return false end
+    end
+    return true
+end
+
+local function runValveHunter()
+    ValvesDone = false
+    Log("Starting valve hunter")
+
+    local root = getRoot()
+
+    while not cycleAborted do
+        local map
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:FindFirstChild("Puzzles") and obj.Puzzles:FindFirstChild("Valves") then
+                map = obj
+                break
+            end
+        end
+        if not map then
+            ValvesDone = true
+            return
+        end
+
+        local valves = map.Puzzles.Valves
+        if valvesDone(valves) then
+            ValvesDone = true
+            return
+        end
+
+        for _, valve in ipairs(valves:GetChildren()) do
+            if cycleAborted then return end
+            local prompt = valve:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt and prompt.Enabled then
+                local parent = prompt.Parent
+                local pos = parent:IsA("Model") and parent:GetPivot().Position or parent.Position
+                local targetCFrame = parent:IsA("Model") and parent:GetPivot() or parent.CFrame
+
+                local start = tick()
+                while prompt.Enabled and tick() - start < 6 and not cycleAborted do
+                    root.CFrame = CFrame.new(pos + targetCFrame.LookVector * 2)
+                    pcall(fireproximityprompt, prompt)
+                    task.wait(0.15)  -- reduced spam from 0.01
+                end
+                if cycleAborted then return end
+                Log("Valve completed: " .. valve.Name)
+            end
+        end
+    end
+end
+
+--------------------------------------------------------------------
+-- WAIT FOR FUSE PROMPTS
+--------------------------------------------------------------------
+local function waitForFusePrompts()
+    Log("Waiting for fuse prompts")
+    while not cycleAborted do
+        local sticks = select(1, findFuseComponents())
+        local s = sticks and sticks:GetChildren()[1]
+        if s and s:FindFirstChildOfClass("ProximityPrompt") then
+            FusePromptsSeen = true
+            Log("Fuse prompts detected")
+            return
+        end
+        task.wait(0.1)
+    end
+end
+
+--------------------------------------------------------------------
+-- AUTO REJOIN
+--------------------------------------------------------------------
+local function rejoin()
+    Log("Rejoining server")
+    lp.OnTeleport:Connect(function()
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/orl95137-lgtm/Automation/refs/heads/main/Automation"
+        ))()
+    end)
+    TeleportService:Teleport(placeId, lp)
+end
+
+--------------------------------------------------------------------
+-- TIMER FINDER
+--------------------------------------------------------------------
+local function findTimerValue()
+    local gameInfo = workspace:FindFirstChild("GameInformation")
+    if gameInfo then
+        return gameInfo:FindFirstChild("Timer")
+    end
+    return nil
+end
+
+--------------------------------------------------------------------
+-- INIT GEM TRACKER
+--------------------------------------------------------------------
+task.spawn(initGemTracker)
+
+--------------------------------------------------------------------
+-- MAIN LOOP
 --------------------------------------------------------------------
 task.spawn(function()
-    initGemTracker()
-    setStatus("Running - Optimized Fuse", Color3.fromRGB(80,220,120))
-
     while true do
-        cycleCount = cycleCount + 1
+        cycleCount += 1
+        cycleAborted = false
+        FuseDone, ScreensDone, ValvesDone, FusePromptsSeen = false, false, false, false
+
+        currentCycleId += 1
+        local myCycleId = currentCycleId
+
         setCycle(cycleCount)
-        sendCycleUpdate(cycleCount, "Cycle running")
+        setStatus("Running cycle " .. cycleCount, Color3.fromRGB(80, 180, 255))
+        sendCycleUpdate(cycleCount, "Cycle started")
+        Log("=== CYCLE " .. cycleCount .. " START ===")
 
-        pcall(runFuseSequence)
+        task.spawn(function()
+            local timerObj = findTimerValue()
+            if not timerObj then return end
+            local lastValue = timerObj.Value
+            while myCycleId == currentCycleId do
+                task.wait(0.1)
+                if myCycleId \~= currentCycleId then return end
+                local newValue = timerObj.Value
+                if lastValue <= 120 and newValue > 120 then
+                    Log("ABORT: Timer jumped above 120 — new round detected")
+                    cycleAborted = true
+                end
+                lastValue = newValue
+            end
+        end)
 
-        task.wait(4)
+        task.spawn(function()
+            while myCycleId == currentCycleId and fusePromptsExist() do
+                task.wait(0.1)
+            end
+            while myCycleId == currentCycleId do
+                task.wait(0.1)
+                if myCycleId \~= currentCycleId then return end
+                if fusePromptsExist() then
+                    Log("ABORT: Fuse prompts reappeared — new round detected")
+                    cycleAborted = true
+                end
+            end
+        end)
+
+        waitForFusePrompts()
+        if not cycleAborted then task.spawn(startScreenSolver) end
+        if not cycleAborted then runFuseSequence() end
+        if not cycleAborted then runValveHunter() end
+
+        if not cycleAborted then
+            while not (FuseDone and ScreensDone and ValvesDone) and not cycleAborted do
+                task.wait(0.1)
+            end
+        end
+
+        currentCycleId += 1
+
+        if cycleAborted then
+            setStatus("Aborted — restarting", Color3.fromRGB(220, 120, 60))
+            sendCycleUpdate(cycleCount, "Cycle aborted — restarting")
+            Log("Cycle aborted — restarting")
+            task.wait(0.5)
+            continue
+        end
+
+        setStatus("Cycle " .. cycleCount .. " complete ✔", Color3.fromRGB(80, 220, 120))
+        sendCycleUpdate(cycleCount, "Cycle complete — resetting character")
+        Log("Cycle complete — resetting character")
+
+        local hum = getChar():FindFirstChildOfClass("Humanoid")
+        if hum then hum.Health = 0 end
+        task.wait(1)
+
+        if cycleCount >= 60 then
+            setStatus("Rejoining...", Color3.fromRGB(220, 180, 60))
+            sendCycleUpdate(cycleCount, "Reached 60 cycles — rejoining server")
+            rejoin()
+            break
+        end
     end
 end)
