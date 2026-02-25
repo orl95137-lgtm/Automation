@@ -6,124 +6,248 @@ local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 local placeId = game.PlaceId
 
 --------------------------------------------------------------------
--- WEBHOOK UI
+-- WEBHOOK PERSISTENCE
 --------------------------------------------------------------------
-local WEBHOOK = "https://discord.com/api/webhooks/1398933926948372501/pUPNqu3cZHP1C7yh0Drt-pPE3tYhqB4_3iN9gAozjIg1eeClZSlND8IYZ6kb783OD1-d"
+local WEBHOOK_FILE = "webhook.txt"
+local WEBHOOK = ""
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WebhookUI"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = lp.PlayerGui
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 400, 0, 70)
-frame.Position = UDim2.new(0.5, -200, 0, 10)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = frame
-
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(1, 0, 0, 20)
-label.Position = UDim2.new(0, 0, 0, 5)
-label.BackgroundTransparency = 1
-label.Text = "Discord Webhook"
-label.TextColor3 = Color3.fromRGB(200, 200, 200)
-label.TextSize = 13
-label.Font = Enum.Font.GothamBold
-label.Parent = frame
-
-local textBox = Instance.new("TextBox")
-textBox.Size = UDim2.new(1, -90, 0, 30)
-textBox.Position = UDim2.new(0, 8, 0, 28)
-textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-textBox.BorderSizePixel = 0
-textBox.Text = WEBHOOK
-textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-textBox.TextSize = 11
-textBox.Font = Enum.Font.Gotham
-textBox.PlaceholderText = "Paste webhook URL here..."
-textBox.ClearTextOnFocus = false
-textBox.Parent = frame
-
-local boxCorner = Instance.new("UICorner")
-boxCorner.CornerRadius = UDim.new(0, 6)
-boxCorner.Parent = textBox
-
-local saveBtn = Instance.new("TextButton")
-saveBtn.Size = UDim2.new(0, 72, 0, 30)
-saveBtn.Position = UDim2.new(1, -80, 0, 28)
-saveBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-saveBtn.BorderSizePixel = 0
-saveBtn.Text = "Save"
-saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-saveBtn.TextSize = 13
-saveBtn.Font = Enum.Font.GothamBold
-saveBtn.Parent = frame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = saveBtn
-
-saveBtn.MouseButton1Click:Connect(function()
-    local newUrl = textBox.Text
-    if newUrl ~= "" then
-        WEBHOOK = newUrl
-        saveBtn.Text = "Saved!"
-        saveBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-        task.wait(1.5)
-        saveBtn.Text = "Save"
-        saveBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+if isfile(WEBHOOK_FILE) then
+    local saved = readfile(WEBHOOK_FILE)
+    if saved and saved ~= "" then
+        WEBHOOK = saved
     end
-end)
+end
 
-local dragging, dragStart, startPos
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-    end
-end)
-frame.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-frame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
+local function saveWebhook(url)
+    pcall(function()
+        writefile(WEBHOOK_FILE, url)
+    end)
+end
 
 --------------------------------------------------------------------
--- WEBHOOK LOGGER
+-- GEM TRACKING
 --------------------------------------------------------------------
-local function Log(msg)
-    print("[AUTO] " .. msg)
+local currentGems = "N/A"
+
+local function initGemTracker()
+    local data = lp:WaitForChild("Data", 10)
+    if not data then return end
+    local gems = data:WaitForChild("Gems", 10)
+    if not gems then return end
+
+    currentGems = gems.Value
+
+    gems:GetPropertyChangedSignal("Value"):Connect(function()
+        currentGems = gems.Value
+        GemsLabel.Text = "💎 Gems: " .. tostring(currentGems)
+    end)
+end
+
+--------------------------------------------------------------------
+-- STYLED UI
+--------------------------------------------------------------------
+local PlayerGui = lp:WaitForChild("PlayerGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AutoWebhookUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 360, 0, 230)
+MainFrame.Position = UDim2.new(0.5, -180, 0.5, -115)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = MainFrame
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = Color3.fromRGB(90, 90, 200)
+Stroke.Thickness = 1.5
+Stroke.Parent = MainFrame
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleBarCorner = Instance.new("UICorner")
+TitleBarCorner.CornerRadius = UDim.new(0, 10)
+TitleBarCorner.Parent = TitleBar
+
+local TitleBarFix = Instance.new("Frame")
+TitleBarFix.Size = UDim2.new(1, 0, 0.5, 0)
+TitleBarFix.Position = UDim2.new(0, 0, 0.5, 0)
+TitleBarFix.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+TitleBarFix.BorderSizePixel = 0
+TitleBarFix.Parent = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Text = "🔁 Auto Webhook Sender"
+TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Color3.fromRGB(220, 220, 255)
+TitleLabel.TextSize = 15
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Text = "✕"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -38, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 14
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Text = "⚪ Status: Starting..."
+StatusLabel.Size = UDim2.new(1, -20, 0, 20)
+StatusLabel.Position = UDim2.new(0, 10, 0, 50)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 200)
+StatusLabel.TextSize = 13
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
+
+local CycleLabel = Instance.new("TextLabel")
+CycleLabel.Text = "🔁 Current Loop: N/A"
+CycleLabel.Size = UDim2.new(1, -20, 0, 20)
+CycleLabel.Position = UDim2.new(0, 10, 0, 75)
+CycleLabel.BackgroundTransparency = 1
+CycleLabel.TextColor3 = Color3.fromRGB(170, 170, 200)
+CycleLabel.TextSize = 13
+CycleLabel.Font = Enum.Font.Gotham
+CycleLabel.TextXAlignment = Enum.TextXAlignment.Left
+CycleLabel.Parent = MainFrame
+
+local GemsLabel = Instance.new("TextLabel")
+GemsLabel.Text = "💎 Gems: N/A"
+GemsLabel.Size = UDim2.new(1, -20, 0, 20)
+GemsLabel.Position = UDim2.new(0, 10, 0, 95)
+GemsLabel.BackgroundTransparency = 1
+GemsLabel.TextColor3 = Color3.fromRGB(170, 170, 200)
+GemsLabel.TextSize = 13
+GemsLabel.Font = Enum.Font.Gotham
+GemsLabel.TextXAlignment = Enum.TextXAlignment.Left
+GemsLabel.Parent = MainFrame
+
+local WebhookBox = Instance.new("TextBox")
+WebhookBox.PlaceholderText = "Paste webhook URL here..."
+WebhookBox.Text = WEBHOOK
+WebhookBox.Size = UDim2.new(1, -20, 0, 36)
+WebhookBox.Position = UDim2.new(0, 10, 0, 128)
+WebhookBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+WebhookBox.TextColor3 = Color3.fromRGB(220, 220, 255)
+WebhookBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 130)
+WebhookBox.TextSize = 12
+WebhookBox.Font = Enum.Font.Gotham
+WebhookBox.ClearTextOnFocus = false
+WebhookBox.BorderSizePixel = 0
+WebhookBox.Parent = MainFrame
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 7)
+BoxCorner.Parent = WebhookBox
+
+local BoxStroke = Instance.new("UIStroke")
+BoxStroke.Color = Color3.fromRGB(70, 70, 160)
+BoxStroke.Thickness = 1
+BoxStroke.Parent = WebhookBox
+
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Text = "💾  Save Webhook"
+SaveBtn.Size = UDim2.new(1, -20, 0, 34)
+SaveBtn.Position = UDim2.new(0, 10, 0, 176)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
+SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveBtn.TextSize = 13
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.BorderSizePixel = 0
+SaveBtn.Parent = MainFrame
+
+local SaveCorner = Instance.new("UICorner")
+SaveCorner.CornerRadius = UDim.new(0, 7)
+SaveCorner.Parent = SaveBtn
+
+--------------------------------------------------------------------
+-- UI HELPERS
+--------------------------------------------------------------------
+local function setStatus(text, color)
+    StatusLabel.Text = "● Status: " .. text
+    StatusLabel.TextColor3 = color or Color3.fromRGB(170, 170, 200)
+end
+
+local function setCycle(n)
+    CycleLabel.Text = "🔁 Current Loop: " .. tostring(n)
+end
+
+SaveBtn.MouseButton1Click:Connect(function()
+    local newUrl = WebhookBox.Text
+    if newUrl == "" or not newUrl:match("^https://") then
+        setStatus("Invalid URL!", Color3.fromRGB(220, 80, 80))
+        return
+    end
+    WEBHOOK = newUrl
+    saveWebhook(newUrl)
+    SaveBtn.Text = "✔  Saved!"
+    SaveBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+    setStatus("Webhook saved", Color3.fromRGB(80, 220, 120))
+    task.wait(1.5)
+    SaveBtn.Text = "💾  Save Webhook"
+    SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+--------------------------------------------------------------------
+-- LOGGER
+--------------------------------------------------------------------
+local function sendCycleUpdate(cycleNum, reason)
     task.spawn(function()
         pcall(function()
             request({
                 Url = WEBHOOK,
                 Method = "POST",
                 Headers = { ["Content-Type"] = "application/json" },
-                Body = game:GetService("HttpService"):JSONEncode({
-                    content = "[AUTO] " .. msg
+                Body = HttpService:JSONEncode({
+                    content = string.format(
+                        "🔁 **Current loop %d** | %s\n💎 **Gems:** %s",
+                        cycleNum,
+                        reason,
+                        tostring(currentGems)
+                    )
                 })
             })
         end)
     end)
+end
+
+local function Log(msg)
+    print("[AUTO] " .. msg)
 end
 
 --------------------------------------------------------------------
@@ -218,7 +342,6 @@ local function runFuseSequence()
 
     Log("Fuse model detected")
 
-    Log("Waiting for fuse prompts to appear")
     while not cycleAborted do
         local stick = sticksFolder:GetChildren()[1]
         if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
@@ -239,7 +362,6 @@ local function runFuseSequence()
         local input = inputFolder:FindFirstChild(slotName)
 
         while not stick and not cycleAborted do
-            Log("Waiting for stick to exist...")
             sticksFolder, inputFolder = findFuseComponents()
             stick = sticksFolder:GetChildren()[1]
             task.wait(0.1)
@@ -259,7 +381,6 @@ local function runFuseSequence()
 
     if cycleAborted then return end
 
-    Log("Checking fuse completion...")
     local confirmed = false
     while not confirmed and not cycleAborted do
         local sticks, inputs = findFuseComponents()
@@ -425,6 +546,11 @@ local function findTimerValue()
 end
 
 --------------------------------------------------------------------
+-- INIT GEM TRACKER
+--------------------------------------------------------------------
+task.spawn(initGemTracker)
+
+--------------------------------------------------------------------
 -- MAIN LOOP
 --------------------------------------------------------------------
 task.spawn(function()
@@ -433,13 +559,14 @@ task.spawn(function()
         cycleAborted = false
         FuseDone, ScreensDone, ValvesDone, FusePromptsSeen = false, false, false, false
 
-        -- Each cycle gets a unique ID — watchers capture it and self-terminate if it changes
         currentCycleId += 1
         local myCycleId = currentCycleId
 
+        setCycle(cycleCount)
+        setStatus("Running cycle " .. cycleCount, Color3.fromRGB(80, 180, 255))
+        sendCycleUpdate(cycleCount, "Cycle started")
         Log("=== CYCLE " .. cycleCount .. " START ===")
 
-        -- WATCHER 1: Timer counts down — abort if it jumps back UP above 120 (new round)
         task.spawn(function()
             local timerObj = findTimerValue()
             if not timerObj then return end
@@ -456,13 +583,10 @@ task.spawn(function()
             end
         end)
 
-        -- WATCHER 2: Fuse prompts reappear after disappearing (new round)
         task.spawn(function()
-            -- Wait for prompts to disappear first
             while myCycleId == currentCycleId and fusePromptsExist() do
                 task.wait(0.1)
             end
-            -- Now watch for reappearance
             while myCycleId == currentCycleId do
                 task.wait(0.1)
                 if myCycleId ~= currentCycleId then return end
@@ -484,21 +608,27 @@ task.spawn(function()
             end
         end
 
-        -- Invalidate watchers by bumping the cycle ID
         currentCycleId += 1
 
         if cycleAborted then
+            setStatus("Aborted — restarting", Color3.fromRGB(220, 120, 60))
+            sendCycleUpdate(cycleCount, "Cycle aborted — restarting")
             Log("Cycle aborted — restarting")
             task.wait(0.5)
             continue
         end
 
+        setStatus("Cycle " .. cycleCount .. " complete ✔", Color3.fromRGB(80, 220, 120))
+        sendCycleUpdate(cycleCount, "Cycle complete — resetting character")
         Log("Cycle complete — resetting character")
+
         local hum = getChar():FindFirstChildOfClass("Humanoid")
         if hum then hum.Health = 0 end
         task.wait(1)
 
         if cycleCount >= 60 then
+            setStatus("Rejoining...", Color3.fromRGB(220, 180, 60))
+            sendCycleUpdate(cycleCount, "Reached 60 cycles — rejoining server")
             rejoin()
             break
         end
