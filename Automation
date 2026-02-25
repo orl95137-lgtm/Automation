@@ -135,7 +135,7 @@ local ValvesDone = false
 local FusePromptsSeen = false
 local cycleCount = 0
 local cycleAborted = false
-local cycleActive = false
+local currentCycleId = 0
 
 local function getChar()
     return lp.Character or lp.CharacterAdded:Wait()
@@ -431,35 +431,41 @@ task.spawn(function()
     while true do
         cycleCount += 1
         cycleAborted = false
-        cycleActive = true
         FuseDone, ScreensDone, ValvesDone, FusePromptsSeen = false, false, false, false
+
+        -- Each cycle gets a unique ID — watchers capture it and self-terminate if it changes
+        currentCycleId += 1
+        local myCycleId = currentCycleId
+
         Log("=== CYCLE " .. cycleCount .. " START ===")
 
-        -- WATCHER 1: Timer > 120 abort
+        -- WATCHER 1: Timer counts down — abort if it jumps back UP above 120 (new round)
         task.spawn(function()
             local timerObj = findTimerValue()
             if not timerObj then return end
             local lastValue = timerObj.Value
-            while cycleActive do
+            while myCycleId == currentCycleId do
                 task.wait(0.1)
+                if myCycleId ~= currentCycleId then return end
                 local newValue = timerObj.Value
                 if lastValue <= 120 and newValue > 120 then
-                    Log("ABORT: Timer crossed above 120")
+                    Log("ABORT: Timer jumped above 120 — new round detected")
                     cycleAborted = true
                 end
                 lastValue = newValue
             end
         end)
 
-        -- WATCHER 2: Fuse prompts reappear after disappearing
+        -- WATCHER 2: Fuse prompts reappear after disappearing (new round)
         task.spawn(function()
             -- Wait for prompts to disappear first
-            while cycleActive and fusePromptsExist() do
+            while myCycleId == currentCycleId and fusePromptsExist() do
                 task.wait(0.1)
             end
-            -- Now watch for them to reappear
-            while cycleActive do
+            -- Now watch for reappearance
+            while myCycleId == currentCycleId do
                 task.wait(0.1)
+                if myCycleId ~= currentCycleId then return end
                 if fusePromptsExist() then
                     Log("ABORT: Fuse prompts reappeared — new round detected")
                     cycleAborted = true
@@ -478,7 +484,8 @@ task.spawn(function()
             end
         end
 
-        cycleActive = false
+        -- Invalidate watchers by bumping the cycle ID
+        currentCycleId += 1
 
         if cycleAborted then
             Log("Cycle aborted — restarting")
