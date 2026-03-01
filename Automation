@@ -73,7 +73,7 @@ local function initGemTracker()
     gems:GetPropertyChangedSignal("Value"):Connect(function()
         currentGems = gems.Value
         if GemsLabel then
-            GemsLabel.Text = "ðŸ’Ž Gems: " .. tostring(currentGems)
+            GemsLabel.Text = "\240\159\146\142 Gems: " .. tostring(currentGems)
         end
     end)
 end
@@ -126,7 +126,7 @@ TitleBarFix.BorderSizePixel = 0
 TitleBarFix.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Text = "ðŸ” Auto Webhook Sender"
+TitleLabel.Text = "\240\159\148\129 Auto Webhook Sender"
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 12, 0, 0)
 TitleLabel.BackgroundTransparency = 1
@@ -137,7 +137,7 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Text = "âœ•"
+CloseBtn.Text = "\226\156\149"
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
 CloseBtn.Position = UDim2.new(1, -38, 0, 5)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
@@ -152,7 +152,7 @@ CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseBtn
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Text = "âšª Status: Starting..."
+StatusLabel.Text = "\226\154\170 Status: Starting..."
 StatusLabel.Size = UDim2.new(1, -20, 0, 20)
 StatusLabel.Position = UDim2.new(0, 10, 0, 50)
 StatusLabel.BackgroundTransparency = 1
@@ -163,7 +163,7 @@ StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
 local CycleLabel = Instance.new("TextLabel")
-CycleLabel.Text = "ðŸ” Current Loop: N/A"
+CycleLabel.Text = "\240\159\148\129 Current Loop: N/A"
 CycleLabel.Size = UDim2.new(1, -20, 0, 20)
 CycleLabel.Position = UDim2.new(0, 10, 0, 75)
 CycleLabel.BackgroundTransparency = 1
@@ -175,7 +175,7 @@ CycleLabel.Parent = MainFrame
 
 -- Assign forward-declared GemsLabel here so initGemTracker can use it
 GemsLabel = Instance.new("TextLabel")
-GemsLabel.Text = "ðŸ’Ž Gems: N/A"
+GemsLabel.Text = "\240\159\146\142 Gems: N/A"
 GemsLabel.Size = UDim2.new(1, -20, 0, 20)
 GemsLabel.Position = UDim2.new(0, 10, 0, 95)
 GemsLabel.BackgroundTransparency = 1
@@ -209,7 +209,7 @@ BoxStroke.Thickness = 1
 BoxStroke.Parent = WebhookBox
 
 local SaveBtn = Instance.new("TextButton")
-SaveBtn.Text = "ðŸ’¾  Save Webhook"
+SaveBtn.Text = "\240\159\146\190  Save Webhook"
 SaveBtn.Size = UDim2.new(1, -20, 0, 34)
 SaveBtn.Position = UDim2.new(0, 10, 0, 176)
 SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
@@ -227,12 +227,12 @@ SaveCorner.Parent = SaveBtn
 -- UI HELPERS
 --------------------------------------------------------------------
 local function setStatus(text, color)
-    StatusLabel.Text = "â— Status: " .. text
+    StatusLabel.Text = "\226\151\143 Status: " .. text
     StatusLabel.TextColor3 = color or Color3.fromRGB(170, 170, 200)
 end
 
 local function setCycle(n)
-    CycleLabel.Text = "ðŸ” Current Loop: " .. tostring(n)
+    CycleLabel.Text = "\240\159\148\129 Current Loop: " .. tostring(n)
 end
 
 SaveBtn.MouseButton1Click:Connect(function()
@@ -243,11 +243,11 @@ SaveBtn.MouseButton1Click:Connect(function()
     end
     WEBHOOK = newUrl
     saveWebhook(newUrl)
-    SaveBtn.Text = "âœ”  Saved!"
+    SaveBtn.Text = "\226\156\148  Saved!"
     SaveBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
     setStatus("Webhook saved", Color3.fromRGB(80, 220, 120))
     task.wait(1.5)
-    SaveBtn.Text = "ðŸ’¾  Save Webhook"
+    SaveBtn.Text = "\240\159\146\190  Save Webhook"
     SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 200)
 end)
 
@@ -399,7 +399,7 @@ local function runFuseSequence(cs)
     while cs.active do
         local stick = sticksFolder:GetChildren()[1]
         if stick and stick:FindFirstChildOfClass("ProximityPrompt") then
-            Log("Fuse prompts detected â€” proceeding")
+            Log("Fuse prompts detected \226\128\148 proceeding")
             break
         end
         task.wait(0.1)
@@ -408,7 +408,7 @@ local function runFuseSequence(cs)
 
     local root = getRoot()
     if not root then
-        Log("ERROR: No HumanoidRootPart â€” aborting fuse")
+        Log("ERROR: No HumanoidRootPart \226\128\148 aborting fuse")
         return
     end
 
@@ -418,7 +418,7 @@ local function runFuseSequence(cs)
         -- FIX: re-fetch components each iteration and guard against nil
         sticksFolder, inputFolder = findFuseComponents()
         if not sticksFolder or not inputFolder then
-            Log("Fuse components lost mid-sequence â€” aborting")
+            Log("Fuse components lost mid-sequence \226\128\148 aborting")
             return
         end
 
@@ -436,7 +436,7 @@ local function runFuseSequence(cs)
         -- FIX: guard input nil before indexing
         local input = inputFolder and inputFolder:FindFirstChild(slotName)
         if not input then
-            Log("Input slot '" .. slotName .. "' not found â€” skipping")
+            Log("Input slot '" .. slotName .. "' not found \226\128\148 skipping")
         else
             local stickPos = getPosition(stick)
             if stickPos then
@@ -473,7 +473,7 @@ local function runFuseSequence(cs)
                 end
             end
         else
-            -- components gone â€” assume done
+            -- components gone \226\128\148 assume done
             confirmed = true
         end
         task.wait(0.1)
@@ -557,7 +557,7 @@ local function runValveHunter(cs)
 
     local root = getRoot()
     if not root then
-        Log("ERROR: No HumanoidRootPart â€” aborting valve hunter")
+        Log("ERROR: No HumanoidRootPart \226\128\148 aborting valve hunter")
         ValvesDone = true
         return
     end
@@ -639,6 +639,7 @@ end
 local function rejoin()
     Log("Rejoining server")
 
+    -- Queue the script to re-execute in the NEW session after teleport lands
     if queue_on_teleport then
         queue_on_teleport([[
             loadstring(game:HttpGet(
@@ -647,19 +648,12 @@ local function rejoin()
         ]])
         Log("Queued script for post-teleport execution")
     else
-        warn("[AUTO] queue_on_teleport not supported on this executor â€” script will not re-execute after rejoin")
+        warn("[AUTO] queue_on_teleport not supported on this executor \226\128\148 script will not re-execute after rejoin")
     end
 
-    -- Keep retrying until the teleport actually takes (silent failures are common)
-    while true do
-        local ok, err = pcall(function()
-            TeleportService:TeleportToPlaceInstance(placeId, game.JobId)
-        end)
-        if not ok then
-            warn("[AUTO] Teleport failed, retrying... " .. tostring(err))
-        end
-        task.wait(2)
-    end
+    pcall(function()
+        TeleportService:Teleport(placeId, lp)
+    end)
 end
 
 --------------------------------------------------------------------
@@ -694,7 +688,7 @@ task.spawn(function()
         Log("=== CYCLE " .. cycleCount .. " START ===")
 
         ----------------------------------------------------------------
-        -- WATCHER: timer jump â†’ new round
+        -- WATCHER: timer jump \226\134\146 new round
         ----------------------------------------------------------------
         task.spawn(function()
             local timerObj = findTimerValue()
@@ -710,12 +704,12 @@ task.spawn(function()
                     return timerObj.Value
                 end)
                 if not ok then
-                    Log("Timer object destroyed â€” ending watcher")
+                    Log("Timer object destroyed \226\128\148 ending watcher")
                     return
                 end
 
                 if lastValue <= 120 and newValue > 120 then
-                    Log("ABORT: Timer jumped above 120 â€” new round detected")
+                    Log("ABORT: Timer jumped above 120 \226\128\148 new round detected")
                     cs.aborted = true
                     cs.active = false
                     return
@@ -741,7 +735,7 @@ task.spawn(function()
                     task.wait(0.1)
                     if not cs.active then return end
                     if fusePromptsExist() then
-                        Log("ABORT: Fuse prompts reappeared â€” new round detected")
+                        Log("ABORT: Fuse prompts reappeared \226\128\148 new round detected")
                         cs.aborted = true
                         cs.active = false
                         return
@@ -766,16 +760,16 @@ task.spawn(function()
         cs.active = false
 
         if cs.aborted then
-            setStatus("Aborted â€” restarting", Color3.fromRGB(220, 120, 60))
-            sendCycleUpdate(cycleCount, "Cycle aborted â€” restarting")
-            Log("Cycle aborted â€” restarting")
+            setStatus("Aborted \226\128\148 restarting", Color3.fromRGB(220, 120, 60))
+            sendCycleUpdate(cycleCount, "Cycle aborted \226\128\148 restarting")
+            Log("Cycle aborted \226\128\148 restarting")
             task.wait(0.5)
             continue
         end
 
-        setStatus("Cycle " .. cycleCount .. " complete âœ”", Color3.fromRGB(80, 220, 120))
-        sendCycleUpdate(cycleCount, "Cycle complete â€” resetting character")
-        Log("Cycle complete â€” resetting character")
+        setStatus("Cycle " .. cycleCount .. " complete \226\156\148", Color3.fromRGB(80, 220, 120))
+        sendCycleUpdate(cycleCount, "Cycle complete - resetting character")
+        Log("Cycle complete \226\128\148 resetting character")
 
         pcall(function()
             local hum = getChar():FindFirstChildOfClass("Humanoid")
@@ -783,12 +777,11 @@ task.spawn(function()
         end)
         task.wait(1)
 
-        if cycleCount >= 15 then
+        if cycleCount >= 60 then
             setStatus("Rejoining...", Color3.fromRGB(220, 180, 60))
-            sendCycleUpdate(cycleCount, "Reached 15 cycles â€” rejoining server")
+            sendCycleUpdate(cycleCount, "Reached 60 cycles \226\128\148 rejoining server")
             rejoin()
             break
         end
     end
 end)
- 
