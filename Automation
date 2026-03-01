@@ -268,7 +268,7 @@ local function sendCycleUpdate(cycleNum, reason)
                 Headers = { ["Content-Type"] = "application/json" },
                 Body = HttpService:JSONEncode({
                     content = string.format(
-                        "ðŸ” **Current loop %d** | %s\nðŸ’Ž **Gems:** %s",
+                        "\xF0\x9F\x94\x81 **Current loop %d** | %s\n\xF0\x9F\x92\x8E **Gems:** %s",
                         cycleNum,
                         reason,
                         tostring(currentGems)
@@ -779,9 +779,10 @@ task.spawn(function()
 
         if cycleCount >= 15 then
             setStatus("Rejoining...", Color3.fromRGB(220, 180, 60))
-            sendCycleUpdate(cycleCount, "Reached 60 cycles â€” rejoining server")
+            sendCycleUpdate(cycleCount, "Reached 15 cycles â€” rejoining server")
             rejoin()
             break
         end
     end
 end)
+ 
