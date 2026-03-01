@@ -268,7 +268,7 @@ local function sendCycleUpdate(cycleNum, reason)
                 Headers = { ["Content-Type"] = "application/json" },
                 Body = HttpService:JSONEncode({
                     content = string.format(
-                        "\xF0\x9F\x94\x81 **Current loop %d** | %s\n\xF0\x9F\x92\x8E **Gems:** %s",
+                        "\240\159\148\129 **Current loop %d** | %s\n\240\159\146\142 **Gems:** %s",
                         cycleNum,
                         reason,
                         tostring(currentGems)
