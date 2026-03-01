@@ -777,7 +777,7 @@ task.spawn(function()
         end)
         task.wait(1)
 
-        if cycleCount >= 60 then
+        if cycleCount >= 15 then
             setStatus("Rejoining...", Color3.fromRGB(220, 180, 60))
             sendCycleUpdate(cycleCount, "Reached 60 cycles â€” rejoining server")
             rejoin()
