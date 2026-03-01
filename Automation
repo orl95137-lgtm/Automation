@@ -639,7 +639,6 @@ end
 local function rejoin()
     Log("Rejoining server")
 
-    -- Queue the script to re-execute in the NEW session after teleport lands
     if queue_on_teleport then
         queue_on_teleport([[
             loadstring(game:HttpGet(
@@ -651,9 +650,16 @@ local function rejoin()
         warn("[AUTO] queue_on_teleport not supported on this executor â€” script will not re-execute after rejoin")
     end
 
-    pcall(function()
-        TeleportService:Teleport(placeId, lp)
-    end)
+    -- Keep retrying until the teleport actually takes (silent failures are common)
+    while true do
+        local ok, err = pcall(function()
+            TeleportService:TeleportToPlaceInstance(placeId, game.JobId)
+        end)
+        if not ok then
+            warn("[AUTO] Teleport failed, retrying... " .. tostring(err))
+        end
+        task.wait(2)
+    end
 end
 
 --------------------------------------------------------------------
